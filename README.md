@@ -97,6 +97,60 @@ Invoke-RestMethod "http://localhost:8080/api/franjas-horarias"
 | `GET` | `/api/profesores` | Consultar profesores |
 | `GET` | `/api/grupos` | Consultar grupos |
 | `GET` | `/api/franjas-horarias` | Consultar las seis franjas |
+| `GET` | `/api/alumnos/{id}` | Consultar un alumno |
+| `POST` | `/api/alumnos` | Crear un alumno |
+| `PUT` | `/api/alumnos/{id}` | Actualizar un alumno |
+| `DELETE` | `/api/alumnos/{id}` | Eliminar un alumno |
+| `GET` | `/api/profesores/{id}` | Consultar un profesor |
+| `POST` | `/api/profesores` | Crear un profesor |
+| `PUT` | `/api/profesores/{id}` | Actualizar un profesor |
+| `DELETE` | `/api/profesores/{id}` | Eliminar un profesor |
+| `GET` | `/api/grupos/{id}` | Consultar un grupo |
+| `POST` | `/api/grupos` | Crear un grupo |
+| `PUT` | `/api/grupos/{id}` | Actualizar un grupo |
+| `DELETE` | `/api/grupos/{id}` | Eliminar un grupo |
+| `GET` | `/api/franjas-horarias/{id}` | Consultar una franja |
+| `POST` | `/api/franjas-horarias` | Crear una franja |
+| `PUT` | `/api/franjas-horarias/{id}` | Actualizar una franja |
+| `DELETE` | `/api/franjas-horarias/{id}` | Eliminar una franja |
+
+Para crear o actualizar un alumno se envía `dni`, `nombre`, `apellidos`,
+`email` (opcional) y `grupoId`. Para un profesor se envía `dni`, `nombre`,
+`apellidos` y `email` (opcional). Los DNI deben tener ocho cifras y una letra.
+
+Un grupo recibe `curso` (por ejemplo `1º ESO` o `2º Bachillerato`) y `seccion`
+(`A` o `B`); la API genera automáticamente el código del grupo. Una franja
+recibe `numero` entre 1 y 6; su nombre (`1º Hora` … `6º Hora`) se genera
+automáticamente.
+
+Ejemplos para crear recursos:
+
+```json
+{
+  "dni": "12345678Z",
+  "nombre": "Ana",
+  "apellidos": "Pérez",
+  "email": "ana@example.test",
+  "grupoId": 1
+}
+```
+
+```json
+{
+  "curso": "1º ESO",
+  "seccion": "A"
+}
+```
+
+```json
+{
+  "numero": 1
+}
+```
+
+Si se intenta eliminar un registro utilizado por un permiso u otro registro, o
+crear un DNI/código/curso/franja duplicados, la API devuelve HTTP `409`. Un
+recurso inexistente devuelve `404`; los datos inválidos devuelven `400`.
 
 Para crear o actualizar un permiso, el cliente envía los identificadores
 obtenidos de los catálogos:

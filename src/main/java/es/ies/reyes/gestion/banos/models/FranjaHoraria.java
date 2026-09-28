@@ -40,4 +40,9 @@ public class FranjaHoraria {
     public String getNombre() {
         return nombre;
     }
+
+    public void actualizar(Integer numero, String nombre) {
+        this.numero = numero;
+        this.nombre = nombre;
+    }
 }

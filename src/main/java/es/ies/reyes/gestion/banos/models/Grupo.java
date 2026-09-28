@@ -52,4 +52,10 @@ public class Grupo {
     public String getCodigo() {
         return codigo;
     }
+
+    public void actualizar(String curso, String seccion, String codigo) {
+        this.curso = curso;
+        this.seccion = seccion;
+        this.codigo = codigo;
+    }
 }

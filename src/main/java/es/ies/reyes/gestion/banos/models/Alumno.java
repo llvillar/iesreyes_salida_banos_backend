@@ -68,4 +68,12 @@ public class Alumno {
     public Grupo getGrupo() {
         return grupo;
     }
+
+    public void actualizar(String dni, String nombre, String apellidos, String email, Grupo grupo) {
+        this.dni = dni;
+        this.nombre = nombre;
+        this.apellidos = apellidos;
+        this.email = email;
+        this.grupo = grupo;
+    }
 }

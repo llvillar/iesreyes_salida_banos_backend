@@ -56,4 +56,11 @@ public class Profesor {
     public String getEmail() {
         return email;
     }
+
+    public void actualizar(String dni, String nombre, String apellidos, String email) {
+        this.dni = dni;
+        this.nombre = nombre;
+        this.apellidos = apellidos;
+        this.email = email;
+    }
 }

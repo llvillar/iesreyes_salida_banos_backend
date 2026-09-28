@@ -16,9 +16,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -104,5 +110,116 @@ class IesReyesApplicationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errores.alumnoId").exists())
                 .andExpect(jsonPath("$.errores.profesorId").exists());
+    }
+
+    @Test
+    void crudCompletoDeCatalogos() throws Exception {
+        mockMvc.perform(get("/api/alumnos/{id}", alumno.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dni").value("12345678Z"));
+
+        String alumnoNuevo = """
+                {
+                  "dni": "11223344A",
+                  "nombre": "Luis",
+                  "apellidos": "Serrano",
+                  "email": "luis@example.test",
+                  "grupoId": %d
+                }
+                """.formatted(alumno.getGrupo().getId());
+        String alumnoActualizado = """
+                {
+                  "dni": "11223344A",
+                  "nombre": "Luis",
+                  "apellidos": "Serrano Díaz",
+                  "email": "luis@example.test",
+                  "grupoId": %d
+                }
+                """.formatted(alumno.getGrupo().getId());
+        long alumnoNuevoId = idDe(mockMvc.perform(post("/api/alumnos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(alumnoNuevo))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nombre").value("Luis"))
+                .andReturn());
+        mockMvc.perform(put("/api/alumnos/{id}", alumnoNuevoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(alumnoActualizado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.apellidos").value("Serrano Díaz"));
+        mockMvc.perform(delete("/api/alumnos/{id}", alumnoNuevoId)).andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/profesores/{id}", profesor.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dni").value("87654321X"));
+        String profesorNuevo = """
+                {"dni":"22334455B","nombre":"Pablo","apellidos":"Vega","email":"pablo@example.test"}
+                """;
+        String profesorActualizado = """
+                {"dni":"22334455B","nombre":"Pablo","apellidos":"Vega Ruiz","email":"pablo@example.test"}
+                """;
+        long profesorNuevoId = idDe(mockMvc.perform(post("/api/profesores")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(profesorNuevo))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nombre").value("Pablo"))
+                .andReturn());
+        mockMvc.perform(put("/api/profesores/{id}", profesorNuevoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(profesorActualizado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.apellidos").value("Vega Ruiz"));
+        mockMvc.perform(delete("/api/profesores/{id}", profesorNuevoId)).andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/grupos/{id}", alumno.getGrupo().getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("1ºA ESO"));
+        String grupoNuevo = """
+                {"curso":"4º ESO","seccion":"A"}
+                """;
+        long grupoNuevoId = idDe(mockMvc.perform(post("/api/grupos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(grupoNuevo))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.codigo").value("4ºA ESO"))
+                .andReturn());
+        mockMvc.perform(put("/api/grupos/{id}", grupoNuevoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"curso\":\"4º ESO\",\"seccion\":\"B\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigo").value("4ºB ESO"));
+        mockMvc.perform(delete("/api/grupos/{id}", grupoNuevoId)).andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/franjas-horarias/{id}", franja.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("3º Hora"));
+        long franjaNuevaId = idDe(mockMvc.perform(post("/api/franjas-horarias")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"numero\":6}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nombre").value("6º Hora"))
+                .andReturn());
+        mockMvc.perform(put("/api/franjas-horarias/{id}", franjaNuevaId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"numero\":5}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("5º Hora"));
+        mockMvc.perform(delete("/api/franjas-horarias/{id}", franjaNuevaId))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void impedirEliminarGrupoConAlumnos() throws Exception {
+        mockMvc.perform(delete("/api/grupos/{id}", alumno.getGrupo().getId()))
+                .andExpect(status().isConflict());
+    }
+
+    private long idDe(MvcResult resultado) throws Exception {
+        Matcher matcher = Pattern.compile("\"id\"\\s*:\\s*(\\d+)")
+                .matcher(resultado.getResponse().getContentAsString());
+        if (!matcher.find()) {
+            throw new AssertionError("La respuesta no contiene un id");
+        }
+        return Long.parseLong(matcher.group(1));
     }
 }
