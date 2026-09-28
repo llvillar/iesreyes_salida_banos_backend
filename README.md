@@ -168,3 +168,30 @@ obtenidos de los catálogos:
 La respuesta incluye los datos relacionados del alumno, su grupo, profesor y
 franja. Una solicitud inválida devuelve HTTP `400`; un identificador inexistente
 devuelve HTTP `404`.
+
+### Filtrar el historial de permisos
+
+`GET /api/permisos` permite combinar estos parámetros opcionales; si no se
+indica ninguno, devuelve el historial completo ordenado por fecha y hora
+descendentes:
+
+| Parámetro | Descripción | Ejemplo |
+| --- | --- | --- |
+| `fecha` | Fecha exacta (`AAAA-MM-DD`) | `fecha=2026-09-28` |
+| `desde`, `hasta` | Rango de fechas, ambos extremos incluidos | `desde=2026-09-01&hasta=2026-09-30` |
+| `grupo` | Código del grupo | `grupo=1ºA%20ESO` |
+| `grupoId` | ID del grupo | `grupoId=1` |
+| `alumnoId`, `alumnoDni` | Filtrar por alumno | `alumnoDni=12345678Z` |
+| `profesorId`, `profesorDni` | Filtrar por profesor | `profesorId=2` |
+| `franjaHorariaId`, `numeroFranja` | Franja por ID o número (1–6) | `numeroFranja=3` |
+| `horaDesde`, `horaHasta` | Rango horario inclusivo (`HH:mm:ss`) | `horaDesde=10:00:00&horaHasta=11:00:00` |
+
+Los filtros se pueden combinar. Por ejemplo, para consultar los permisos de un
+alumno de un grupo concreto durante septiembre y en la tercera franja:
+
+```text
+http://localhost:8080/api/permisos?desde=2026-09-01&hasta=2026-09-30&grupoId=1&alumnoId=1&numeroFranja=3
+```
+
+Una fecha inicial posterior a la final, o una hora inicial posterior a la final,
+devuelve HTTP `400`.

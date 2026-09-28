@@ -4,6 +4,7 @@ import es.ies.reyes.gestion.banos.models.Alumno;
 import es.ies.reyes.gestion.banos.models.FranjaHoraria;
 import es.ies.reyes.gestion.banos.models.Grupo;
 import es.ies.reyes.gestion.banos.models.Profesor;
+import es.ies.reyes.gestion.banos.models.PermisoBano;
 import es.ies.reyes.gestion.banos.repositories.AlumnoRepository;
 import es.ies.reyes.gestion.banos.repositories.FranjaHorariaRepository;
 import es.ies.reyes.gestion.banos.repositories.GrupoRepository;
@@ -20,6 +21,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -212,6 +215,49 @@ class IesReyesApplicationTests {
     void impedirEliminarGrupoConAlumnos() throws Exception {
         mockMvc.perform(delete("/api/grupos/{id}", alumno.getGrupo().getId()))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void filtrarHistorialPorGrupoAlumnoProfesorFranjaYFechas() throws Exception {
+        Grupo otroGrupo = grupoRepository.save(new Grupo("2º ESO", "B", "2ºB ESO"));
+        Alumno otroAlumno = alumnoRepository.save(new Alumno(
+                "22345678A", "Luis", "Serrano", "luis@example.test", otroGrupo));
+        Profesor otroProfesor = profesorRepository.save(new Profesor(
+                "97654321X", "Pablo", "Vega", "pablo@example.test"));
+        FranjaHoraria otraFranja = franjaRepository.save(new FranjaHoraria(4, "4º Hora"));
+
+        permisoRepository.save(new PermisoBano(
+                alumno, profesor, franja, LocalDate.of(2026, 9, 28), LocalTime.of(10, 15)));
+        permisoRepository.save(new PermisoBano(
+                otroAlumno, otroProfesor, otraFranja, LocalDate.of(2026, 9, 29), LocalTime.of(11, 20)));
+
+        mockMvc.perform(get("/api/permisos")
+                        .param("desde", "2026-09-28")
+                        .param("hasta", "2026-09-29")
+                        .param("grupoId", alumno.getGrupo().getId().toString())
+                        .param("alumnoDni", alumno.getDni())
+                        .param("profesorId", profesor.getId().toString())
+                        .param("numeroFranja", franja.getNumero().toString())
+                        .param("horaDesde", "10:00:00")
+                        .param("horaHasta", "10:30:00"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].alumno.dni").value("12345678Z"));
+
+        mockMvc.perform(get("/api/permisos")
+                        .param("fecha", "2026-09-29")
+                        .param("grupo", "2ºB ESO")
+                        .param("alumnoId", otroAlumno.getId().toString())
+                        .param("profesorDni", otroProfesor.getDni())
+                        .param("franjaHorariaId", otraFranja.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].alumno.dni").value("22345678A"));
+
+        mockMvc.perform(get("/api/permisos")
+                        .param("desde", "2026-09-30")
+                        .param("hasta", "2026-09-28"))
+                .andExpect(status().isBadRequest());
     }
 
     private long idDe(MvcResult resultado) throws Exception {
