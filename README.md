@@ -31,6 +31,42 @@ Al iniciar, Hibernate crea o actualiza la tabla `permisos_bano`. En desarrollo
 se puede ejecutar la aplicación desde IntelliJ o con `mvnw spring-boot:run`.
 Las pruebas usan H2 en memoria y no requieren una instancia de PostgreSQL.
 
+## Frontend web
+
+El MVP del frontend está en `frontend/` y ofrece un formulario para registrar
+permisos, además de un historial filtrable por fecha y búsqueda. La interfaz es
+adaptable a móvil. Necesitas instalar Node.js LTS, que incluye `npm`, y abrir
+una terminal nueva después de instalarlo. Comprueba que ambos comandos están
+disponibles:
+
+```powershell
+node --version
+npm --version
+```
+
+Inicia antes la API (por ejemplo con `docker compose up --build`) y, en otra
+terminal, ejecuta desde la carpeta del proyecto:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Si PowerShell indica que `npm` no se reconoce, instala Node.js LTS y reinicia
+la terminal o IntelliJ para actualizar el `PATH`. Si `npm` está instalado pero
+PowerShell bloquea `npm.ps1` por la política de ejecución, usa el lanzador de
+Windows:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+Abre la dirección local que indique Vite (normalmente `http://localhost:5173`).
+Durante el desarrollo, Vite reenvía las peticiones `/api` a
+`http://localhost:8080`.
+
 ## Ejecutar con Docker
 
 Necesitas Docker Desktop abierto. Desde la carpeta del proyecto, ejecuta:
