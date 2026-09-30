@@ -110,6 +110,47 @@ $env:DB_PASSWORD = "cambia-esta-clave"
 docker compose up --build
 ```
 
+## Entorno local de preproducción
+
+Para probar en el PC una configuración más parecida a producción, Docker Compose
+puede iniciar la web compilada y servida por Nginx, la API y PostgreSQL. No hace
+falta crear una máquina virtual: Docker aísla cada servicio en su contenedor.
+Este entorno usa un volumen separado del entorno de desarrollo y solo publica
+la web en el propio PC; la API y la base de datos no se exponen directamente.
+
+En PowerShell, desde la carpeta del proyecto:
+
+```powershell
+$env:DB_PASSWORD = "una-clave-local-distinta"
+docker compose -f compose.preproduccion.yaml up --build -d
+```
+
+Abre `http://localhost:8081`. Nginx sirve el frontend compilado y reenvía las
+peticiones `/api` a la API. Para ver el estado y los registros:
+
+```powershell
+docker compose -f compose.preproduccion.yaml ps
+docker compose -f compose.preproduccion.yaml logs -f
+```
+
+Para detenerlo sin borrar los datos:
+
+```powershell
+docker compose -f compose.preproduccion.yaml down
+```
+
+Para borrar también la base de datos de preproducción y sus datos de prueba:
+
+```powershell
+docker compose -f compose.preproduccion.yaml down -v
+```
+
+La primera inicialización carga los datos de ejemplo de
+`db/recrear-bbdd.sql`. La variable `$env:DB_PASSWORD` solo se aplica a una base
+de datos creada por primera vez; cambiarla no modifica la contraseña de un
+volumen existente. Esta configuración sirve para pruebas en el PC, no para
+publicar el sistema en Internet.
+
 Para consultar los permisos cargados, incluidos los de hoy:
 
 ```powershell
