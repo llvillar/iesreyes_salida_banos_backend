@@ -1,4 +1,16 @@
-import type { Alumno, FranjaHoraria, Permiso, PermisoNuevo, Profesor } from './types'
+import type {
+  Alumno,
+  AlumnoNuevo,
+  FranjaHoraria,
+  FranjaHorariaNueva,
+  Grupo,
+  GrupoNuevo,
+  FiltrosPermisos,
+  Permiso,
+  PermisoNuevo,
+  Profesor,
+  ProfesorNuevo,
+} from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -26,10 +38,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   listarAlumnos: () => request<Alumno[]>('/api/alumnos'),
+  crearAlumno: (alumno: AlumnoNuevo) =>
+    request<Alumno>('/api/alumnos', { method: 'POST', body: JSON.stringify(alumno) }),
+  actualizarAlumno: (id: number, alumno: AlumnoNuevo) =>
+    request<Alumno>(`/api/alumnos/${id}`, { method: 'PUT', body: JSON.stringify(alumno) }),
+  eliminarAlumno: (id: number) =>
+    request<void>(`/api/alumnos/${id}`, { method: 'DELETE' }),
   listarProfesores: () => request<Profesor[]>('/api/profesores'),
+  crearProfesor: (profesor: ProfesorNuevo) =>
+    request<Profesor>('/api/profesores', { method: 'POST', body: JSON.stringify(profesor) }),
+  actualizarProfesor: (id: number, profesor: ProfesorNuevo) =>
+    request<Profesor>(`/api/profesores/${id}`, { method: 'PUT', body: JSON.stringify(profesor) }),
+  eliminarProfesor: (id: number) =>
+    request<void>(`/api/profesores/${id}`, { method: 'DELETE' }),
+  listarGrupos: () => request<Grupo[]>('/api/grupos'),
+  crearGrupo: (grupo: GrupoNuevo) =>
+    request<Grupo>('/api/grupos', { method: 'POST', body: JSON.stringify(grupo) }),
+  actualizarGrupo: (id: number, grupo: GrupoNuevo) =>
+    request<Grupo>(`/api/grupos/${id}`, { method: 'PUT', body: JSON.stringify(grupo) }),
+  eliminarGrupo: (id: number) =>
+    request<void>(`/api/grupos/${id}`, { method: 'DELETE' }),
   listarFranjas: () => request<FranjaHoraria[]>('/api/franjas-horarias'),
-  listarPermisos: (fecha?: string) => {
-    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : ''
+  crearFranja: (franja: FranjaHorariaNueva) =>
+    request<FranjaHoraria>('/api/franjas-horarias', { method: 'POST', body: JSON.stringify(franja) }),
+  actualizarFranja: (id: number, franja: FranjaHorariaNueva) =>
+    request<FranjaHoraria>(`/api/franjas-horarias/${id}`, { method: 'PUT', body: JSON.stringify(franja) }),
+  eliminarFranja: (id: number) =>
+    request<void>(`/api/franjas-horarias/${id}`, { method: 'DELETE' }),
+  listarPermisos: (fecha?: string, filtros: FiltrosPermisos = {}) => {
+    const params = new URLSearchParams()
+    if (fecha) params.set('fecha', fecha)
+    if (filtros.grupoId) params.set('grupoId', String(filtros.grupoId))
+    if (filtros.alumnoId) params.set('alumnoId', String(filtros.alumnoId))
+    if (filtros.profesorId) params.set('profesorId', String(filtros.profesorId))
+    if (filtros.franjaHorariaId) params.set('franjaHorariaId', String(filtros.franjaHorariaId))
+    const query = params.size ? `?${params.toString()}` : ''
     return request<Permiso[]>(`/api/permisos${query}`)
   },
   crearPermiso: (permiso: PermisoNuevo) =>

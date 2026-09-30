@@ -45,3 +45,34 @@ export interface PermisoNuevo {
   fecha: string
   hora: string
 }
+
+export interface FiltrosPermisos {
+  grupoId?: number
+  alumnoId?: number
+  profesorId?: number
+  franjaHorariaId?: number
+}
+
+export interface AlumnoNuevo {
+  dni: string
+  nombre: string
+  apellidos: string
+  email: string
+  grupoId: number
+}
+
+export interface ProfesorNuevo {
+  dni: string
+  nombre: string
+  apellidos: string
+  email: string
+}
+
+export interface GrupoNuevo {
+  curso: string
+  seccion: string
+}
+
+export interface FranjaHorariaNueva {
+  numero: number
+}

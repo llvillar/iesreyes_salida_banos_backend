@@ -33,11 +33,12 @@ Las pruebas usan H2 en memoria y no requieren una instancia de PostgreSQL.
 
 ## Frontend web
 
-El MVP del frontend está en `frontend/` y ofrece un formulario para registrar
-permisos, además de un historial filtrable por fecha y búsqueda. La interfaz es
-adaptable a móvil. Necesitas instalar Node.js LTS, que incluye `npm`, y abrir
-una terminal nueva después de instalarlo. Comprueba que ambos comandos están
-disponibles:
+El frontend está en `frontend/` y ofrece un formulario para registrar permisos,
+un historial filtrable y una sección de administración para dar de alta,
+modificar y eliminar alumnos, profesores, grupos y franjas horarias. Al crear o
+editar un alumno se debe seleccionar su grupo. La interfaz es adaptable a
+móvil. Necesitas instalar Node.js LTS, que incluye `npm`, y abrir una terminal
+nueva después de instalarlo. Comprueba que ambos comandos están disponibles:
 
 ```powershell
 node --version

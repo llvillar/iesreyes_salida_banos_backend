@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import {
   ArrowDownUp,
   Check,
@@ -18,7 +18,8 @@ import {
   X,
 } from 'lucide-react'
 import { api } from './api'
-import type { Alumno, FranjaHoraria, Permiso, Profesor } from './types'
+import GestionCatalogos from './GestionCatalogos'
+import type { Alumno, FiltrosPermisos, FranjaHoraria, Grupo, Permiso, Profesor } from './types'
 
 const fechaHoy = () => {
   const ahora = new Date()
@@ -39,7 +40,15 @@ const fechaLarga = new Intl.DateTimeFormat('es-ES', {
 })
 
 function nombreCompleto(persona: { nombre: string; apellidos: string }) {
-  return `${persona.nombre} ${persona.apellidos}`
+  return `${persona.apellidos}, ${persona.nombre}`
+}
+
+function compararApellidos(
+  a: { nombre: string; apellidos: string },
+  b: { nombre: string; apellidos: string },
+) {
+  return a.apellidos.localeCompare(b.apellidos, 'es', { sensitivity: 'base' }) ||
+    a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
 }
 
 function horaVisible(hora: string) {
@@ -50,17 +59,118 @@ function errorComoTexto(error: unknown) {
   return error instanceof Error ? error.message : 'Ha ocurrido un error inesperado.'
 }
 
+interface OpcionDesplegable {
+  id: number
+  etiqueta: string
+}
+
+function BuscadorDesplegable({
+  etiqueta,
+  placeholder,
+  valor,
+  opciones,
+  deshabilitado = false,
+  alCambiar,
+}: {
+  etiqueta: string
+  placeholder: string
+  valor: string
+  opciones: OpcionDesplegable[]
+  deshabilitado?: boolean
+  alCambiar: (valor: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [indiceActivo, setIndiceActivo] = useState(0)
+  const idLista = `opciones-${etiqueta.toLocaleLowerCase('es').replace(/\s+/g, '-')}`
+  const seleccionado = opciones.find((opcion) => String(opcion.id) === valor)
+  const normalizar = (texto: string) => texto.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es')
+  const opcionesFiltradas = opciones.filter((opcion) => normalizar(opcion.etiqueta).includes(normalizar(busqueda.trim())))
+
+  const seleccionar = (opcion: OpcionDesplegable) => {
+    alCambiar(String(opcion.id))
+    setBusqueda('')
+    setAbierto(false)
+  }
+
+  const manejarTeclado = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setBusqueda('')
+      setAbierto(false)
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setAbierto(true)
+      setIndiceActivo((indice) => Math.min(indice + 1, opcionesFiltradas.length - 1))
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setIndiceActivo((indice) => Math.max(indice - 1, 0))
+    } else if (event.key === 'Enter' && abierto && opcionesFiltradas[indiceActivo]) {
+      event.preventDefault()
+      seleccionar(opcionesFiltradas[indiceActivo])
+    }
+  }
+
+  return (
+    <label className="field">
+      <span>{etiqueta} <b>*</b></span>
+      <div className="search-select">
+        <input
+          role="combobox"
+          aria-label={etiqueta}
+          aria-autocomplete="list"
+          aria-expanded={abierto}
+          aria-controls={idLista}
+          aria-activedescendant={abierto && opcionesFiltradas[indiceActivo] ? `${idLista}-${opcionesFiltradas[indiceActivo].id}` : undefined}
+          autoComplete="off"
+          value={abierto ? busqueda : seleccionado?.etiqueta ?? ''}
+          placeholder={deshabilitado ? placeholder : seleccionado?.etiqueta ?? placeholder}
+          disabled={deshabilitado}
+          onFocus={() => { setBusqueda(''); setIndiceActivo(0); setAbierto(true) }}
+          onChange={(event) => { setBusqueda(event.target.value); setIndiceActivo(0); setAbierto(true); alCambiar('') }}
+          onKeyDown={manejarTeclado}
+          onBlur={() => { setAbierto(false); setBusqueda('') }}
+        />
+        <ChevronDown size={16} aria-hidden="true" />
+        {abierto && <div className="search-select-options" id={idLista} role="listbox" aria-label={etiqueta}>
+          {opcionesFiltradas.length ? opcionesFiltradas.map((opcion, indice) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={String(opcion.id) === valor}
+              id={`${idLista}-${opcion.id}`}
+              className={indice === indiceActivo ? 'search-select-option highlighted' : 'search-select-option'}
+              key={opcion.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setIndiceActivo(indice)}
+              onClick={() => seleccionar(opcion)}
+            >
+              {opcion.etiqueta}
+            </button>
+          )) : <span className="search-select-empty">No hay resultados</span>}
+        </div>}
+      </div>
+    </label>
+  )
+}
+
 function App() {
+  const [vista, setVista] = useState<'permisos' | 'gestion'>('permisos')
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
+  const [grupos, setGrupos] = useState<Grupo[]>([])
   const [profesores, setProfesores] = useState<Profesor[]>([])
   const [franjas, setFranjas] = useState<FranjaHoraria[]>([])
   const [permisos, setPermisos] = useState<Permiso[]>([])
   const [fecha, setFecha] = useState(fechaHoy)
+  const [grupoId, setGrupoId] = useState('')
   const [alumnoId, setAlumnoId] = useState('')
   const [profesorId, setProfesorId] = useState('')
   const [franjaId, setFranjaId] = useState('')
   const [hora, setHora] = useState(horaActual)
   const [busqueda, setBusqueda] = useState('')
+  const [filtroGrupoHistorial, setFiltroGrupoHistorial] = useState('')
+  const [filtroAlumnoHistorial, setFiltroAlumnoHistorial] = useState('')
+  const [filtroProfesorHistorial, setFiltroProfesorHistorial] = useState('')
+  const [filtroFranjaHistorial, setFiltroFranjaHistorial] = useState('')
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true)
   const [cargandoPermisos, setCargandoPermisos] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -69,13 +179,13 @@ function App() {
 
   useEffect(() => {
     let activo = true
-    Promise.all([api.listarAlumnos(), api.listarProfesores(), api.listarFranjas()])
-      .then(([listaAlumnos, listaProfesores, listaFranjas]) => {
+    Promise.all([api.listarAlumnos(), api.listarGrupos(), api.listarProfesores(), api.listarFranjas()])
+      .then(([listaAlumnos, listaGrupos, listaProfesores, listaFranjas]) => {
         if (!activo) return
         setAlumnos(listaAlumnos)
+        setGrupos(listaGrupos)
         setProfesores(listaProfesores)
         setFranjas(listaFranjas)
-        if (listaAlumnos.length) setAlumnoId(String(listaAlumnos[0].id))
         if (listaProfesores.length) setProfesorId(String(listaProfesores[0].id))
         if (listaFranjas.length) setFranjaId(String(listaFranjas[0].id))
       })
@@ -92,7 +202,13 @@ function App() {
     let activo = true
     setCargandoPermisos(true)
     setError('')
-    api.listarPermisos(fecha)
+    const filtros: FiltrosPermisos = {
+      grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
+      alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
+      profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
+      franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
+    }
+    api.listarPermisos(fecha, filtros)
       .then((lista) => {
         if (activo) setPermisos(lista)
       })
@@ -103,7 +219,7 @@ function App() {
         if (activo) setCargandoPermisos(false)
       })
     return () => { activo = false }
-  }, [fecha])
+  }, [fecha, filtroGrupoHistorial, filtroAlumnoHistorial, filtroProfesorHistorial, filtroFranjaHistorial])
 
   const permisosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLocaleLowerCase('es')
@@ -132,7 +248,12 @@ function App() {
         fecha,
         hora: `${hora}:00`,
       })
-      const actualizados = await api.listarPermisos(fecha)
+      const actualizados = await api.listarPermisos(fecha, {
+        grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
+        alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
+        profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
+        franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
+      })
       setPermisos(actualizados)
       setAviso('Permiso registrado correctamente.')
       setHora(horaActual())
@@ -145,8 +266,29 @@ function App() {
 
   const alumnosHoy = new Set(permisos.map((permiso) => permiso.alumno.id)).size
   const franjasOrdenadas = [...franjas].sort((a, b) => a.numero - b.numero)
+  const gruposOrdenados = [...grupos].sort((a, b) =>
+    a.codigo.localeCompare(b.codigo, 'es', { sensitivity: 'base' }))
+  const gruposHistorialOrdenados = gruposOrdenados
+  const alumnosHistorialOrdenados = [...alumnos].sort(compararApellidos)
+  const alumnosDelGrupo = alumnos
+    .filter((alumno) => String(alumno.grupo.id) === grupoId)
+    .sort(compararApellidos)
+  const profesoresOrdenados = [...profesores].sort(compararApellidos)
+  const opcionesGrupo = gruposOrdenados.map((grupo) => ({ id: grupo.id, etiqueta: grupo.codigo }))
+  const opcionesAlumno = alumnosDelGrupo.map((alumno) => ({ id: alumno.id, etiqueta: nombreCompleto(alumno) }))
+  const opcionesProfesor = profesoresOrdenados.map((profesor) => ({ id: profesor.id, etiqueta: nombreCompleto(profesor) }))
+  const hayFiltrosHistorial = Boolean(
+    busqueda || filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
+  )
+  const limpiarFiltrosHistorial = () => {
+    setBusqueda('')
+    setFiltroGrupoHistorial('')
+    setFiltroAlumnoHistorial('')
+    setFiltroProfesorHistorial('')
+    setFiltroFranjaHistorial('')
+  }
   const noHayCatalogos = !cargandoCatalogos &&
-    (!alumnos.length || !profesores.length || !franjas.length)
+    (!alumnos.length || !grupos.length || !profesores.length || !franjas.length)
 
   return (
     <div className="app-shell">
@@ -163,11 +305,11 @@ function App() {
 
         <div className="nav-label">MENÚ PRINCIPAL</div>
         <nav className="main-nav" aria-label="Navegación principal">
-          <a className="nav-link" href="#resumen"><LayoutDashboard size={18} />Resumen</a>
-          <a className="nav-link active" href="#permisos"><FileClock size={18} />Permisos<span className="nav-count">{permisos.length}</span></a>
+          <button className="nav-link" type="button" onClick={() => setVista('permisos')}><LayoutDashboard size={18} />Resumen</button>
+          <button className={`nav-link${vista === 'permisos' ? ' active' : ''}`} type="button" onClick={() => setVista('permisos')}><FileClock size={18} />Permisos<span className="nav-count">{permisos.length}</span></button>
         </nav>
         <div className="nav-label nav-label-spaced">GESTIÓN</div>
-        <div className="nav-link nav-static"><UsersRound size={18} />Comunidad escolar</div>
+        <button className={`nav-link nav-static${vista === 'gestion' ? ' active' : ''}`} type="button" onClick={() => setVista('gestion')}><UsersRound size={18} />Comunidad escolar</button>
         <div className="sidebar-bottom">
           <div className="help-card">
             <span className="help-icon"><CircleHelp size={18} /></span>
@@ -184,7 +326,7 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">Centro <span>/</span> <strong>Permisos de baño</strong></div>
+          <div className="breadcrumb">Centro <span>/</span> <strong>{vista === 'permisos' ? 'Permisos de baño' : 'Comunidad escolar'}</strong></div>
           <div className="topbar-right">
             <div className="today-pill"><span /> Sistema operativo</div>
             <span className="avatar avatar-purple top-avatar">AD</span>
@@ -192,6 +334,7 @@ function App() {
         </header>
 
         <div className="page-content">
+          {vista === 'gestion' ? <GestionCatalogos /> : <>
           <section className="page-heading" id="resumen">
             <div>
               <div className="eyebrow"><span className="eyebrow-line" />GESTIÓN DIARIA</div>
@@ -239,33 +382,34 @@ function App() {
                 <div><h2>Nuevo permiso</h2><p>Completa los datos para registrar una salida.</p></div>
               </div>
               {noHayCatalogos && (
-                <div className="inline-warning">Faltan alumnos, profesores o franjas horarias. Carga los catálogos en la API antes de registrar permisos.</div>
+                <div className="inline-warning">Faltan alumnos, grupos, profesores o franjas horarias. Carga los catálogos en la API antes de registrar permisos.</div>
               )}
               <form className="permission-form" onSubmit={crearPermiso}>
-                <label className="field">
-                  <span>Alumno <b>*</b></span>
-                  <div className="select-wrap">
-                    <select value={alumnoId} onChange={(event) => setAlumnoId(event.target.value)} required disabled={cargandoCatalogos || !alumnos.length}>
-                      <option value="" disabled>Selecciona un alumno</option>
-                      {alumnos.map((alumno) => (
-                        <option key={alumno.id} value={alumno.id}>
-                          {nombreCompleto(alumno)} · {alumno.grupo.codigo}
-                        </option>
-                      ))}
-                    </select><ChevronDown size={16} />
-                  </div>
-                </label>
-                <label className="field">
-                  <span>Profesor responsable <b>*</b></span>
-                  <div className="select-wrap">
-                    <select value={profesorId} onChange={(event) => setProfesorId(event.target.value)} required disabled={cargandoCatalogos || !profesores.length}>
-                      <option value="" disabled>Selecciona un profesor</option>
-                      {profesores.map((profesor) => (
-                        <option key={profesor.id} value={profesor.id}>{nombreCompleto(profesor)}</option>
-                      ))}
-                    </select><ChevronDown size={16} />
-                  </div>
-                </label>
+                <BuscadorDesplegable
+                  etiqueta="Grupo"
+                  placeholder="Busca o selecciona un grupo"
+                  valor={grupoId}
+                  opciones={opcionesGrupo}
+                  deshabilitado={cargandoCatalogos || !grupos.length}
+                  alCambiar={(valor) => { setGrupoId(valor); setAlumnoId('') }}
+                />
+                <BuscadorDesplegable
+                  etiqueta="Alumno"
+                  placeholder={grupoId ? 'Busca o selecciona un alumno' : 'Selecciona primero un grupo'}
+                  valor={alumnoId}
+                  opciones={opcionesAlumno}
+                  deshabilitado={cargandoCatalogos || !grupoId || !alumnosDelGrupo.length}
+                  alCambiar={setAlumnoId}
+                />
+                {grupoId && !alumnosDelGrupo.length && <small className="field-help">No hay alumnos en este grupo.</small>}
+                <BuscadorDesplegable
+                  etiqueta="Profesor responsable"
+                  placeholder="Busca o selecciona un profesor"
+                  valor={profesorId}
+                  opciones={opcionesProfesor}
+                  deshabilitado={cargandoCatalogos || !profesores.length}
+                  alCambiar={setProfesorId}
+                />
                 <label className="field">
                   <span>Franja horaria <b>*</b></span>
                   <div className="select-wrap">
@@ -288,7 +432,7 @@ function App() {
                   </label>
                 </div>
                 <div className="form-note"><ShieldCheck size={15} />El permiso quedará registrado en el historial del centro.</div>
-                <button className="submit-button" type="submit" disabled={guardando || cargandoCatalogos || noHayCatalogos}>
+                <button className="submit-button" type="submit" disabled={guardando || cargandoCatalogos || noHayCatalogos || !grupoId || !alumnoId}>
                   {guardando ? <LoaderCircle size={17} className="spin" /> : <Plus size={17} />}
                   {guardando ? 'Registrando permiso…' : 'Registrar permiso'}
                 </button>
@@ -308,6 +452,21 @@ function App() {
               <div className="history-tools">
                 <div className="search-box"><Search size={16} /><input value={busqueda} onChange={(event) => setBusqueda(event.target.value)} placeholder="Buscar alumno, grupo…" aria-label="Buscar en permisos" /></div>
                 <label className="date-filter"><ListFilter size={15} /><span className="sr-only">Filtrar por fecha</span><input type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} /></label>
+              </div>
+              <div className="history-filters">
+                <label className="history-filter-field"><span>Grupo</span><select value={filtroGrupoHistorial} onChange={(event) => setFiltroGrupoHistorial(event.target.value)} aria-label="Filtrar historial por grupo">
+                  <option value="">Todos</option>{gruposHistorialOrdenados.map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.codigo}</option>)}
+                </select></label>
+                <label className="history-filter-field"><span>Alumno</span><select value={filtroAlumnoHistorial} onChange={(event) => setFiltroAlumnoHistorial(event.target.value)} aria-label="Filtrar historial por alumno">
+                  <option value="">Todos</option>{alumnosHistorialOrdenados.map((alumno) => <option key={alumno.id} value={alumno.id}>{nombreCompleto(alumno)}</option>)}
+                </select></label>
+                <label className="history-filter-field"><span>Profesor</span><select value={filtroProfesorHistorial} onChange={(event) => setFiltroProfesorHistorial(event.target.value)} aria-label="Filtrar historial por profesor">
+                  <option value="">Todos</option>{profesoresOrdenados.map((profesor) => <option key={profesor.id} value={profesor.id}>{nombreCompleto(profesor)}</option>)}
+                </select></label>
+                <label className="history-filter-field"><span>Franja</span><select value={filtroFranjaHistorial} onChange={(event) => setFiltroFranjaHistorial(event.target.value)} aria-label="Filtrar historial por franja horaria">
+                  <option value="">Todas</option>{franjasOrdenadas.map((franja) => <option key={franja.id} value={franja.id}>{franja.nombre}</option>)}
+                </select></label>
+                <button className="clear-history-filters" type="button" onClick={limpiarFiltrosHistorial} disabled={!hayFiltrosHistorial}>Limpiar filtros</button>
               </div>
               <div className="table-head">
                 <span>ALUMNO</span><span>GRUPO</span><span>HORA / FRANJA</span><span>PROFESOR</span>
@@ -331,17 +490,18 @@ function App() {
               ) : (
                 <div className="table-state empty-state">
                   <span className="empty-icon"><FileClock size={22} /></span>
-                  <strong>{busqueda ? 'No hay resultados' : 'Todavía no hay permisos'}</strong>
-                  <span>{busqueda ? 'Prueba con otro nombre o grupo.' : 'Los permisos registrados para esta fecha aparecerán aquí.'}</span>
+                  <strong>{hayFiltrosHistorial ? 'No hay resultados' : 'Todavía no hay permisos'}</strong>
+                  <span>{hayFiltrosHistorial ? 'Prueba con otros filtros.' : 'Los permisos registrados para esta fecha aparecerán aquí.'}</span>
                 </div>
               )}
               <div className="list-footer">
-                <span>{permisosFiltrados.length} {permisosFiltrados.length === 1 ? 'permiso' : 'permisos'}{busqueda ? ' encontrados' : ''}</span>
+                <span>{permisosFiltrados.length} {permisosFiltrados.length === 1 ? 'permiso' : 'permisos'}{hayFiltrosHistorial ? ' encontrados' : ''}</span>
                 <span className="live-indicator"><span /> Datos actualizados</span>
               </div>
             </article>
           </section>
           <footer className="page-footer">© {new Date().getFullYear()} IES Reyes <span>·</span> Gestión de permisos de baño</footer>
+          </>}
         </div>
       </main>
     </div>
