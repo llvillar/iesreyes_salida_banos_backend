@@ -10,13 +10,31 @@ import type {
   PermisoNuevo,
   Profesor,
   ProfesorNuevo,
+  UsuarioSesion,
 } from './types'
 
+let csrfToken = ''
+
+async function cargarTokenCsrf() {
+  const response = await fetch('/api/auth/csrf', { credentials: 'same-origin' })
+  if (!response.ok) throw new Error(`No se pudo iniciar la sesión (${response.status})`)
+  const resultado = await response.json() as { token: string }
+  csrfToken = resultado.token
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = (options?.method ?? 'GET').toUpperCase()
+  if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && !csrfToken) {
+    await cargarTokenCsrf()
+  }
   const response = await fetch(path, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
+      ...(csrfToken && !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)
+        ? { 'X-XSRF-TOKEN': csrfToken }
+        : {}),
       ...options?.headers,
     },
   })
@@ -29,7 +47,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     } catch {
       // La respuesta puede no contener JSON.
     }
-    throw new Error(message)
+    const error = new Error(message) as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
 
   if (response.status === 204) return undefined as T
@@ -37,6 +57,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  iniciarSesion: async (username: string, password: string) => {
+    await cargarTokenCsrf()
+    return request<UsuarioSesion>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    })
+  },
+  usuarioActual: async () => {
+    await cargarTokenCsrf()
+    return request<UsuarioSesion>('/api/auth/me')
+  },
+  cerrarSesion: () => request<void>('/api/auth/logout', { method: 'POST' }),
   listarAlumnos: () => request<Alumno[]>('/api/alumnos'),
   crearAlumno: (alumno: AlumnoNuevo) =>
     request<Alumno>('/api/alumnos', { method: 'POST', body: JSON.stringify(alumno) }),

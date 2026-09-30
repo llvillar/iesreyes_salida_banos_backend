@@ -53,6 +53,11 @@ export interface FiltrosPermisos {
   franjaHorariaId?: number
 }
 
+export interface UsuarioSesion {
+  username: string
+  role: 'GESTION_CATALOGOS' | 'GESTION_PERMISOS'
+}
+
 export interface AlumnoNuevo {
   dni: string
   nombre: string

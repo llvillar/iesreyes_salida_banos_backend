@@ -31,6 +31,39 @@ Al iniciar, Hibernate crea o actualiza la tabla `permisos_bano`. En desarrollo
 se puede ejecutar la aplicación desde IntelliJ o con `mvnw spring-boot:run`.
 Las pruebas usan H2 en memoria y no requieren una instancia de PostgreSQL.
 
+## Usuarios y permisos
+
+La API requiere iniciar sesión. Se usan sesiones de servidor con cookie y
+protección CSRF. Hay dos cuentas iniciales configuradas por entorno:
+
+| Variables | Perfil |
+| --- | --- |
+| `AUTH_CATALOG_USERNAME`, `AUTH_CATALOG_PASSWORD` | Puede gestionar catálogos y permisos |
+| `AUTH_PERMISSIONS_USERNAME`, `AUTH_PERMISSIONS_PASSWORD` | Puede consultar catálogos y gestionar permisos, pero no modificarlos |
+
+Los nombres de usuario deben ser distintos y cada contraseña debe tener al
+menos 12 caracteres. No uses contraseñas reales en el repositorio ni las
+reutilices. El Compose de desarrollo usa `catalogo` / `dev-catalogo-cambia` y
+`salidas` / `dev-salidas-cambia`; son credenciales de prueba y no deben usarse
+fuera del PC local. Preproducción exige que configures ambas cuentas. Puedes
+copiar el archivo de ejemplo, editar las credenciales y mantener `.env` sin
+añadirlo al repositorio:
+
+```powershell
+Copy-Item .env.example .env
+docker compose -f compose.preproduccion.yaml up --build -d
+```
+
+Compose carga `.env` automáticamente, así que los comandos `logs`, `ps` y
+`down` también funcionarán desde terminales nuevas.
+
+La aplicación no incluye todavía una pantalla para crear usuarios adicionales:
+las dos cuentas se aprovisionan mediante variables de entorno. En un servidor
+con HTTPS, configura `SESSION_COOKIE_SECURE=true`; no publiques el servicio
+sin HTTPS. Esa propiedad está activada por defecto al ejecutar la aplicación
+fuera de Compose; los Compose locales la desactivan porque usan HTTP. Si ejecutas
+Spring Boot directamente en tu PC, define `SESSION_COOKIE_SECURE=false`.
+
 ## Frontend web
 
 El frontend está en `frontend/` y ofrece un formulario para registrar permisos,

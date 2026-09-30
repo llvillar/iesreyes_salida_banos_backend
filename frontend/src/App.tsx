@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ListFilter,
   LoaderCircle,
+  LogOut,
   Plus,
   Search,
   ShieldCheck,
@@ -19,7 +20,8 @@ import {
 } from 'lucide-react'
 import { api } from './api'
 import GestionCatalogos from './GestionCatalogos'
-import type { Alumno, FiltrosPermisos, FranjaHoraria, Grupo, Permiso, Profesor } from './types'
+import Login from './Login'
+import type { Alumno, FiltrosPermisos, FranjaHoraria, Grupo, Permiso, Profesor, UsuarioSesion } from './types'
 
 const fechaHoy = () => {
   const ahora = new Date()
@@ -154,6 +156,45 @@ function BuscadorDesplegable({
 }
 
 function App() {
+  const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
+  const [comprobandoSesion, setComprobandoSesion] = useState(true)
+  const [errorSesion, setErrorSesion] = useState('')
+
+  useEffect(() => {
+    let activo = true
+    api.usuarioActual()
+      .then((sesion) => { if (activo) setUsuario(sesion) })
+      .catch((cause: unknown) => {
+        if (!activo) return
+        const estado = (cause as Error & { status?: number }).status
+        if (estado !== 401) setErrorSesion(errorComoTexto(cause))
+      })
+      .finally(() => { if (activo) setComprobandoSesion(false) })
+    return () => { activo = false }
+  }, [])
+
+  if (comprobandoSesion) {
+    return <main className="login-page"><div className="table-state"><LoaderCircle className="spin" size={22} /><span>Comprobando sesión…</span></div></main>
+  }
+  if (errorSesion) {
+    return <main className="login-page"><div className="alert alert-error" role="alert">{errorSesion}</div></main>
+  }
+  if (!usuario) return <Login onLogin={setUsuario} />
+
+  const cerrarSesion = async () => {
+    await api.cerrarSesion()
+    setUsuario(null)
+  }
+  return <AuthenticatedApp usuario={usuario} onLogout={cerrarSesion} />
+}
+
+function AuthenticatedApp({
+  usuario,
+  onLogout,
+}: {
+  usuario: UsuarioSesion
+  onLogout: () => Promise<void>
+}) {
   const [vista, setVista] = useState<'permisos' | 'gestion'>('permisos')
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
   const [grupos, setGrupos] = useState<Grupo[]>([])
@@ -176,6 +217,8 @@ function App() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
+  const puedeGestionarCatalogos = usuario.role === 'GESTION_CATALOGOS'
+  const rolVisible = puedeGestionarCatalogos ? 'Gestión de catálogos' : 'Gestión de salidas'
 
   useEffect(() => {
     let activo = true
@@ -308,8 +351,10 @@ function App() {
           <button className="nav-link" type="button" onClick={() => setVista('permisos')}><LayoutDashboard size={18} />Resumen</button>
           <button className={`nav-link${vista === 'permisos' ? ' active' : ''}`} type="button" onClick={() => setVista('permisos')}><FileClock size={18} />Permisos<span className="nav-count">{permisos.length}</span></button>
         </nav>
-        <div className="nav-label nav-label-spaced">GESTIÓN</div>
-        <button className={`nav-link nav-static${vista === 'gestion' ? ' active' : ''}`} type="button" onClick={() => setVista('gestion')}><UsersRound size={18} />Comunidad escolar</button>
+        {puedeGestionarCatalogos && <>
+          <div className="nav-label nav-label-spaced">GESTIÓN</div>
+          <button className={`nav-link nav-static${vista === 'gestion' ? ' active' : ''}`} type="button" onClick={() => setVista('gestion')}><UsersRound size={18} />Comunidad escolar</button>
+        </>}
         <div className="sidebar-bottom">
           <div className="help-card">
             <span className="help-icon"><CircleHelp size={18} /></span>
@@ -317,8 +362,8 @@ function App() {
             <p>Contacta con el equipo de administración del centro.</p>
           </div>
           <div className="sidebar-user">
-            <span className="avatar avatar-purple">AD</span>
-            <span><strong>Administración</strong><small>IES Reyes</small></span>
+            <span className="avatar avatar-purple">{usuario.username.slice(0, 2).toLocaleUpperCase('es')}</span>
+            <span><strong>{usuario.username}</strong><small>{rolVisible}</small></span>
             <span className="online-dot" />
           </div>
         </div>
@@ -329,12 +374,13 @@ function App() {
           <div className="breadcrumb">Centro <span>/</span> <strong>{vista === 'permisos' ? 'Permisos de baño' : 'Comunidad escolar'}</strong></div>
           <div className="topbar-right">
             <div className="today-pill"><span /> Sistema operativo</div>
-            <span className="avatar avatar-purple top-avatar">AD</span>
+            <span className="avatar avatar-purple top-avatar">{usuario.username.slice(0, 2).toLocaleUpperCase('es')}</span>
+            <button className="logout-button" type="button" onClick={() => { void onLogout().catch((cause: unknown) => setError(errorComoTexto(cause))) }} aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={17} /></button>
           </div>
         </header>
 
         <div className="page-content">
-          {vista === 'gestion' ? <GestionCatalogos /> : <>
+          {vista === 'gestion' && puedeGestionarCatalogos ? <GestionCatalogos /> : <>
           <section className="page-heading" id="resumen">
             <div>
               <div className="eyebrow"><span className="eyebrow-line" />GESTIÓN DIARIA</div>

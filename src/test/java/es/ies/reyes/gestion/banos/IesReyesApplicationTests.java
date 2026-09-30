@@ -18,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 class IesReyesApplicationTests {
 
     @Autowired
@@ -89,7 +90,7 @@ class IesReyesApplicationTests {
                 }
                 """.formatted(alumno.getId(), profesor.getId(), franja.getId());
 
-        mockMvc.perform(post("/api/permisos")
+        mockMvc.perform(post("/api/permisos").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(permiso))
                 .andExpect(status().isCreated())
@@ -107,7 +108,7 @@ class IesReyesApplicationTests {
 
     @Test
     void rechazarPermisoSinReferencias() throws Exception {
-        mockMvc.perform(post("/api/permisos")
+        mockMvc.perform(post("/api/permisos").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"fecha\":\"2026-09-28\",\"hora\":\"10:15:00\"}"))
                 .andExpect(status().isBadRequest())
@@ -139,18 +140,20 @@ class IesReyesApplicationTests {
                   "grupoId": %d
                 }
                 """.formatted(alumno.getGrupo().getId());
-        long alumnoNuevoId = idDe(mockMvc.perform(post("/api/alumnos")
+        long alumnoNuevoId = idDe(mockMvc.perform(post("/api/alumnos").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(alumnoNuevo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombre").value("Luis"))
                 .andReturn());
-        mockMvc.perform(put("/api/alumnos/{id}", alumnoNuevoId)
+        mockMvc.perform(put("/api/alumnos/{id}", alumnoNuevoId).with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(alumnoActualizado))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.apellidos").value("Serrano Díaz"));
-        mockMvc.perform(delete("/api/alumnos/{id}", alumnoNuevoId)).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/alumnos/{id}", alumnoNuevoId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/profesores/{id}", profesor.getId()))
                 .andExpect(status().isOk())
@@ -161,18 +164,20 @@ class IesReyesApplicationTests {
         String profesorActualizado = """
                 {"dni":"22334455B","nombre":"Pablo","apellidos":"Vega Ruiz","email":"pablo@example.test"}
                 """;
-        long profesorNuevoId = idDe(mockMvc.perform(post("/api/profesores")
+        long profesorNuevoId = idDe(mockMvc.perform(post("/api/profesores").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(profesorNuevo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombre").value("Pablo"))
                 .andReturn());
-        mockMvc.perform(put("/api/profesores/{id}", profesorNuevoId)
+        mockMvc.perform(put("/api/profesores/{id}", profesorNuevoId).with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(profesorActualizado))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.apellidos").value("Vega Ruiz"));
-        mockMvc.perform(delete("/api/profesores/{id}", profesorNuevoId)).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/profesores/{id}", profesorNuevoId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/grupos/{id}", alumno.getGrupo().getId()))
                 .andExpect(status().isOk())
@@ -180,40 +185,44 @@ class IesReyesApplicationTests {
         String grupoNuevo = """
                 {"curso":"4º ESO","seccion":"A"}
                 """;
-        long grupoNuevoId = idDe(mockMvc.perform(post("/api/grupos")
+        long grupoNuevoId = idDe(mockMvc.perform(post("/api/grupos").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(grupoNuevo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.codigo").value("4ºA ESO"))
                 .andReturn());
-        mockMvc.perform(put("/api/grupos/{id}", grupoNuevoId)
+        mockMvc.perform(put("/api/grupos/{id}", grupoNuevoId).with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"curso\":\"4º ESO\",\"seccion\":\"B\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigo").value("4ºB ESO"));
-        mockMvc.perform(delete("/api/grupos/{id}", grupoNuevoId)).andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/grupos/{id}", grupoNuevoId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/franjas-horarias/{id}", franja.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("3º Hora"));
-        long franjaNuevaId = idDe(mockMvc.perform(post("/api/franjas-horarias")
+        long franjaNuevaId = idDe(mockMvc.perform(post("/api/franjas-horarias").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"numero\":6}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombre").value("6º Hora"))
                 .andReturn());
-        mockMvc.perform(put("/api/franjas-horarias/{id}", franjaNuevaId)
+        mockMvc.perform(put("/api/franjas-horarias/{id}", franjaNuevaId).with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"numero\":5}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("5º Hora"));
-        mockMvc.perform(delete("/api/franjas-horarias/{id}", franjaNuevaId))
+        mockMvc.perform(delete("/api/franjas-horarias/{id}", franjaNuevaId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void impedirEliminarGrupoConAlumnos() throws Exception {
-        mockMvc.perform(delete("/api/grupos/{id}", alumno.getGrupo().getId()))
+        mockMvc.perform(delete("/api/grupos/{id}", alumno.getGrupo().getId())
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isConflict());
     }
 

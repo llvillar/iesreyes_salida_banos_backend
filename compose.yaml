@@ -26,6 +26,11 @@ services:
       DB_URL: jdbc:postgresql://db:5432/ies_reyes
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      AUTH_CATALOG_USERNAME: ${AUTH_CATALOG_USERNAME:-catalogo}
+      AUTH_CATALOG_PASSWORD: ${AUTH_CATALOG_PASSWORD:-dev-catalogo-cambia}
+      AUTH_PERMISSIONS_USERNAME: ${AUTH_PERMISSIONS_USERNAME:-salidas}
+      AUTH_PERMISSIONS_PASSWORD: ${AUTH_PERMISSIONS_PASSWORD:-dev-salidas-cambia}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy
