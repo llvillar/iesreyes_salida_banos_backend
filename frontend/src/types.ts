@@ -56,8 +56,18 @@ export interface FiltrosPermisos {
 }
 
 export interface UsuarioSesion {
-  username: string
+  email: string
   role: 'GESTION_CATALOGOS' | 'GESTION_PERMISOS'
+}
+
+export interface UsuarioApp {
+  id: number
+  email: string
+  perfil: UsuarioSesion['role']
+  profesorId: number
+  profesorDni: string
+  profesorNombre: string
+  profesorApellidos: string
 }
 
 export interface AlumnoNuevo {

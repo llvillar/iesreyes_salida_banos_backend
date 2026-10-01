@@ -9,6 +9,7 @@ import {
   CircleHelp,
   Clock3,
   FileClock,
+  KeyRound,
   LayoutDashboard,
   ListFilter,
   LoaderCircle,
@@ -23,6 +24,8 @@ import {
 } from 'lucide-react'
 import { api } from './api'
 import GestionCatalogos from './GestionCatalogos'
+import GestionUsuarios from './GestionUsuarios'
+import CambioContrasena from './CambioContrasena'
 import Login from './Login'
 import type { Alumno, FiltrosPermisos, FranjaHoraria, Grupo, Permiso, Profesor, UsuarioSesion } from './types'
 
@@ -205,7 +208,7 @@ function AuthenticatedApp({
   usuario: UsuarioSesion
   onLogout: () => Promise<void>
 }) {
-  const [vista, setVista] = useState<'permisos' | 'gestion'>('permisos')
+  const [vista, setVista] = useState<'permisos' | 'gestion' | 'usuarios' | 'cuenta'>('permisos')
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [profesores, setProfesores] = useState<Profesor[]>([])
@@ -454,7 +457,10 @@ function AuthenticatedApp({
         {puedeGestionarCatalogos && <>
           <div className="nav-label nav-label-spaced">GESTIÓN</div>
           <button className={`nav-link nav-static${vista === 'gestion' ? ' active' : ''}`} type="button" onClick={() => setVista('gestion')}><UsersRound size={18} />Comunidad escolar</button>
+          <button className={`nav-link nav-static${vista === 'usuarios' ? ' active' : ''}`} type="button" onClick={() => setVista('usuarios')}><UsersRound size={18} />Cuentas de usuario</button>
         </>}
+        <div className="nav-label nav-label-spaced">CUENTA</div>
+        <button className={`nav-link nav-static${vista === 'cuenta' ? ' active' : ''}`} type="button" onClick={() => setVista('cuenta')}><KeyRound size={18} />Cambiar contraseña</button>
         <div className="sidebar-bottom">
           <div className="help-card">
             <span className="help-icon"><CircleHelp size={18} /></span>
@@ -462,8 +468,8 @@ function AuthenticatedApp({
             <p>Contacta con el equipo de administración del centro.</p>
           </div>
           <div className="sidebar-user">
-            <span className="avatar avatar-purple">{usuario.username.slice(0, 2).toLocaleUpperCase('es')}</span>
-            <span><strong>{usuario.username}</strong><small>{rolVisible}</small></span>
+            <span className="avatar avatar-purple">{usuario.email.slice(0, 2).toLocaleUpperCase('es')}</span>
+            <span><strong>{usuario.email}</strong><small>{rolVisible}</small></span>
             <span className="online-dot" />
           </div>
         </div>
@@ -471,16 +477,22 @@ function AuthenticatedApp({
 
       <main className="main-content">
         <header className="topbar">
-          <div className="breadcrumb">Centro <span>/</span> <strong>{vista === 'permisos' ? 'Permisos de baño' : 'Comunidad escolar'}</strong></div>
+          <div className="breadcrumb">Centro <span>/</span> <strong>{
+            vista === 'permisos' ? 'Permisos de baño'
+              : vista === 'gestion' ? 'Comunidad escolar'
+                : vista === 'usuarios' ? 'Cuentas de usuario' : 'Mi cuenta'
+          }</strong></div>
           <div className="topbar-right">
             <div className="today-pill"><span /> Sistema operativo</div>
-            <span className="avatar avatar-purple top-avatar">{usuario.username.slice(0, 2).toLocaleUpperCase('es')}</span>
+            <span className="avatar avatar-purple top-avatar">{usuario.email.slice(0, 2).toLocaleUpperCase('es')}</span>
             <button className="logout-button" type="button" onClick={() => { void onLogout().catch((cause: unknown) => setError(errorComoTexto(cause))) }} aria-label="Cerrar sesión" title="Cerrar sesión"><LogOut size={17} /></button>
           </div>
         </header>
 
         <div className="page-content">
-          {vista === 'gestion' && puedeGestionarCatalogos ? <GestionCatalogos /> : <>
+          {vista === 'gestion' && puedeGestionarCatalogos ? <GestionCatalogos />
+            : vista === 'usuarios' && puedeGestionarCatalogos ? <GestionUsuarios />
+              : vista === 'cuenta' ? <CambioContrasena /> : <>
           <section className="page-heading" id="resumen">
             <div>
               <div className="eyebrow"><span className="eyebrow-line" />GESTIÓN DIARIA</div>

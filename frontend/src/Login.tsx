@@ -5,7 +5,7 @@ import { api } from './api'
 import type { UsuarioSesion } from './types'
 
 function Login({ onLogin }: { onLogin: (usuario: UsuarioSesion) => void }) {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -15,7 +15,7 @@ function Login({ onLogin }: { onLogin: (usuario: UsuarioSesion) => void }) {
     setError('')
     setCargando(true)
     try {
-      onLogin(await api.iniciarSesion(username, password))
+      onLogin(await api.iniciarSesion(email, password))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo iniciar sesión.')
     } finally {
@@ -33,8 +33,8 @@ function Login({ onLogin }: { onLogin: (usuario: UsuarioSesion) => void }) {
         {error && <div className="alert alert-error" role="alert">{error}</div>}
         <form className="login-form" onSubmit={enviar}>
           <label className="field">
-            <span>Usuario <b>*</b></span>
-            <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required />
+            <span>Correo electrónico <b>*</b></span>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
           </label>
           <label className="field">
             <span>Contraseña <b>*</b></span>

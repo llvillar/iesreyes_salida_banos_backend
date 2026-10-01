@@ -1,6 +1,5 @@
 package es.ies.reyes.gestion.banos.security;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,16 +7,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 @Configuration
 @EnableMethodSecurity
@@ -26,32 +24,6 @@ public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    UserDetailsService userDetailsService(
-            PasswordEncoder passwordEncoder,
-            @Value("${app.auth.catalog-username}") String catalogUsername,
-            @Value("${app.auth.catalog-password}") String catalogPassword,
-            @Value("${app.auth.permissions-username}") String permissionsUsername,
-            @Value("${app.auth.permissions-password}") String permissionsPassword) {
-        if (catalogUsername.isBlank() || permissionsUsername.isBlank()
-                || catalogPassword.length() < 12 || permissionsPassword.length() < 12) {
-            throw new IllegalArgumentException(
-                    "Los usuarios no pueden estar vacíos y las contraseñas deben tener al menos 12 caracteres");
-        }
-        if (catalogUsername.equals(permissionsUsername)) {
-            throw new IllegalArgumentException("Los nombres de usuario de cada perfil deben ser distintos");
-        }
-        return new InMemoryUserDetailsManager(
-                User.withUsername(catalogUsername)
-                        .password(passwordEncoder.encode(catalogPassword))
-                        .roles("GESTION_CATALOGOS")
-                        .build(),
-                User.withUsername(permissionsUsername)
-                        .password(passwordEncoder.encode(permissionsPassword))
-                        .roles("GESTION_PERMISOS")
-                        .build());
     }
 
     @Bean
@@ -65,7 +37,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, UserDetailsService userDetailsService) throws Exception {
         CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
         csrfHandler.setCsrfRequestAttributeName(null);
@@ -78,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
+                        .requestMatchers("/api/usuarios/**").hasRole("GESTION_CATALOGOS")
                         .requestMatchers(HttpMethod.POST, "/api/alumnos/**", "/api/profesores/**",
                                 "/api/grupos/**", "/api/franjas-horarias/**").hasRole("GESTION_CATALOGOS")
                         .requestMatchers(HttpMethod.PUT, "/api/alumnos/**", "/api/profesores/**",
@@ -93,6 +66,10 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable());
+        http.addFilterAfter(
+                new UsuarioAppSessionFilter(userDetailsService),
+                SecurityContextHolderFilter.class
+        );
         return http.build();
     }
 }

@@ -29,15 +29,18 @@ public class CatalogoService {
     private final ProfesorRepository profesorRepository;
     private final GrupoRepository grupoRepository;
     private final FranjaHorariaRepository franjaRepository;
+    private final UsuarioAppService usuarioAppService;
 
     public CatalogoService(AlumnoRepository alumnoRepository,
                            ProfesorRepository profesorRepository,
                            GrupoRepository grupoRepository,
-                           FranjaHorariaRepository franjaRepository) {
+                           FranjaHorariaRepository franjaRepository,
+                           UsuarioAppService usuarioAppService) {
         this.alumnoRepository = alumnoRepository;
         this.profesorRepository = profesorRepository;
         this.grupoRepository = grupoRepository;
         this.franjaRepository = franjaRepository;
+        this.usuarioAppService = usuarioAppService;
     }
 
     @Transactional(readOnly = true)
@@ -94,7 +97,9 @@ public class CatalogoService {
                 request.apellidos().trim(),
                 normalizarEmail(request.email())
         );
-        return ProfesorResponse.desde(profesorRepository.save(profesor));
+        Profesor guardado = profesorRepository.save(profesor);
+        usuarioAppService.sincronizarEmailProfesor(guardado);
+        return ProfesorResponse.desde(guardado);
     }
 
     public ProfesorResponse actualizarProfesor(Long id, ProfesorRequest request) {
@@ -105,7 +110,9 @@ public class CatalogoService {
                 request.apellidos().trim(),
                 normalizarEmail(request.email())
         );
-        return ProfesorResponse.desde(profesorRepository.save(profesor));
+        Profesor guardado = profesorRepository.save(profesor);
+        usuarioAppService.sincronizarEmailProfesor(guardado);
+        return ProfesorResponse.desde(guardado);
     }
 
     public void eliminarProfesor(Long id) {
@@ -185,6 +192,6 @@ public class CatalogoService {
     }
 
     private String normalizarEmail(String email) {
-        return email == null || email.isBlank() ? null : email.trim();
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
     }
 }

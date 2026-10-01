@@ -27,27 +27,42 @@ de entorno para tu instalación:
 | `DB_USERNAME` | `postgres` |
 | `DB_PASSWORD` | `postgres` |
 
-Al iniciar, Hibernate crea o actualiza la tabla `permisos_bano`. En desarrollo
-se puede ejecutar la aplicación desde IntelliJ o con `mvnw spring-boot:run`.
-Las pruebas usan H2 en memoria y no requieren una instancia de PostgreSQL.
+El esquema completo de PostgreSQL está en `db/esquema.sql` y los datos ficticios
+de prueba en `db/datos-prueba.sql`. En desarrollo, Compose ejecuta ambos, en ese
+orden, al inicializar un volumen nuevo. La aplicación también actualiza el
+esquema al arrancar. En desarrollo se puede ejecutar desde
+IntelliJ o con `mvnw spring-boot:run`; las pruebas automatizadas usan H2 en
+memoria y no requieren una instancia de PostgreSQL.
 
 ## Usuarios y permisos
 
-La API requiere iniciar sesión. Se usan sesiones de servidor con cookie y
-protección CSRF. Hay dos cuentas iniciales configuradas por entorno:
+La API requiere iniciar sesión con el correo electrónico del profesor y su
+contraseña. Las cuentas se guardan en `usuarios_app`, con contraseñas cifradas
+mediante BCrypt y una relación única con un profesor; el correo del profesor es
+el identificador de acceso. Se usan sesiones de servidor con cookie y protección
+CSRF. El primer usuario se crea al iniciar la aplicación con
+`AUTH_INITIAL_PASSWORD` y `AUTH_INITIAL_PROFESOR_DNI`; debe corresponder a un
+profesor existente con correo electrónico y obtiene permiso para gestionar
+catálogos. Solo se crea si la tabla de usuarios está vacía, por lo que cambiar
+esas variables no restablece las cuentas de una base ya inicializada.
 
-| Variables | Perfil |
-| --- | --- |
-| `AUTH_CATALOG_USERNAME`, `AUTH_CATALOG_PASSWORD` | Puede gestionar catálogos y permisos |
-| `AUTH_PERMISSIONS_USERNAME`, `AUTH_PERMISSIONS_PASSWORD` | Puede consultar catálogos y gestionar permisos, pero no modificarlos |
+El usuario inicial puede crear las cuentas de los demás profesores desde
+**Cuentas de usuario** y asignar o retirar el permiso de gestión del catálogo.
+Para crear una cuenta, el profesor debe tener correo registrado; ese correo será
+su usuario de acceso y no puede compartirse con otra cuenta. Cada profesor puede
+tener una sola cuenta. Si se cambia el correo de un profesor, cambia también su
+identificador de acceso. Todos los profesores pueden cambiar su contraseña
+desde **Cambiar contraseña**, indicando la contraseña actual.
+Las contraseñas deben tener al menos 12 caracteres y no superar 72 bytes en
+UTF-8. No hay registro público: las altas y los permisos los controla un usuario
+de gestión de catálogos.
 
-Los nombres de usuario deben ser distintos y cada contraseña debe tener al
-menos 12 caracteres. No uses contraseñas reales en el repositorio ni las
-reutilices. El Compose de desarrollo usa `catalogo` / `dev-catalogo-cambia` y
-`salidas` / `dev-salidas-cambia`; son credenciales de prueba y no deben usarse
-fuera del PC local. Preproducción exige que configures ambas cuentas. Puedes
-copiar el archivo de ejemplo, editar las credenciales y mantener `.env` sin
-añadirlo al repositorio:
+No uses contraseñas reales en el repositorio ni las reutilices. El Compose de
+desarrollo crea la cuenta inicial vinculada al profesor de DNI `00000001A`, con
+contraseña `dev-catalogo-cambia`; su identificador será el correo de ese
+profesor. Son valores de prueba y no deben usarse fuera del PC local.
+Preproducción exige configurar estas dos variables. Puedes copiar el archivo de
+ejemplo, editar los valores y mantener `.env` sin añadirlo al repositorio:
 
 ```powershell
 Copy-Item .env.example .env
@@ -57,12 +72,11 @@ docker compose -f compose.preproduccion.yaml up --build -d
 Compose carga `.env` automáticamente, así que los comandos `logs`, `ps` y
 `down` también funcionarán desde terminales nuevas.
 
-La aplicación no incluye todavía una pantalla para crear usuarios adicionales:
-las dos cuentas se aprovisionan mediante variables de entorno. En un servidor
-con HTTPS, configura `SESSION_COOKIE_SECURE=true`; no publiques el servicio
-sin HTTPS. Esa propiedad está activada por defecto al ejecutar la aplicación
-fuera de Compose; los Compose locales la desactivan porque usan HTTP. Si ejecutas
-Spring Boot directamente en tu PC, define `SESSION_COOKIE_SECURE=false`.
+En un servidor con HTTPS, configura `SESSION_COOKIE_SECURE=true`; no publiques
+el servicio sin HTTPS. Esa propiedad está activada por defecto al ejecutar la
+aplicación fuera de Compose; los Compose locales la desactivan porque usan HTTP.
+Si ejecutas Spring Boot directamente en tu PC, define
+`SESSION_COOKIE_SECURE=false`.
 
 ## Frontend web
 
@@ -120,9 +134,22 @@ al detener los contenedores. Para parar la aplicación, pulsa `Ctrl+C` y ejecuta
 `docker compose down`. Para borrar también la base y sus datos:
 `docker compose down -v`.
 
-Al crear un volumen nuevo, PostgreSQL ejecuta `db/recrear-bbdd.sql`; crea las
-tablas normalizadas y carga grupos, seis franjas, doce alumnos y seis permisos
-de prueba. Para migrar el esquema antiguo en un volumen existente y conservar
+Al crear un volumen nuevo, PostgreSQL ejecuta `db/esquema.sql` y después
+`db/datos-prueba.sql`; crea las tablas normalizadas (incluida `usuarios_app`) y
+carga grupos, seis franjas, seis profesores, doce alumnos y seis permisos de
+prueba. El profesor `00000001A` tiene correo `marta.lopez@example.test`; al
+arrancar, la aplicación crea para él la cuenta inicial de gestión con la
+contraseña configurada en `AUTH_INITIAL_PASSWORD`. Para una base PostgreSQL
+vacía creada manualmente, ejecuta los dos scripts en este orden:
+
+```powershell
+psql -v ON_ERROR_STOP=1 -d ies_reyes -f .\db\esquema.sql
+psql -v ON_ERROR_STOP=1 -d ies_reyes -f .\db\datos-prueba.sql
+```
+
+Los scripts de creación y carga eliminan y sustituyen las tablas de la
+aplicación: utilízalos solo en una base nueva o si quieres reiniciarla. Para
+migrar el esquema antiguo en un volumen existente y conservar
 los permisos que ya tenga, abre PowerShell en el proyecto y ejecuta:
 
 ```powershell
@@ -196,8 +223,8 @@ Para borrar también la base de datos de preproducción y sus datos de prueba:
 docker compose -f compose.preproduccion.yaml down -v
 ```
 
-La primera inicialización carga los datos de ejemplo de
-`db/recrear-bbdd.sql`. La variable `$env:DB_PASSWORD` solo se aplica a una base
+La primera inicialización ejecuta `db/esquema.sql` y
+`db/datos-prueba.sql`. La variable `$env:DB_PASSWORD` solo se aplica a una base
 de datos creada por primera vez; cambiarla no modifica la contraseña de un
 volumen existente. Esta configuración sirve para pruebas en el PC, no para
 publicar el sistema en Internet.
@@ -226,6 +253,11 @@ Invoke-RestMethod "http://localhost:8080/api/franjas-horarias"
 | `GET` | `/api/profesores` | Consultar profesores |
 | `GET` | `/api/grupos` | Consultar grupos |
 | `GET` | `/api/franjas-horarias` | Consultar las seis franjas |
+| `PUT` | `/api/auth/password` | Cambiar la contraseña del usuario autenticado |
+| `GET` | `/api/usuarios` | Listar las cuentas (solo gestión de catálogos) |
+| `POST` | `/api/usuarios` | Crear una cuenta para un profesor (solo gestión de catálogos) |
+| `PUT` | `/api/usuarios/{id}/perfil` | Cambiar sus permisos (solo gestión de catálogos) |
+| `DELETE` | `/api/usuarios/{id}` | Eliminar una cuenta (solo gestión de catálogos) |
 | `GET` | `/api/alumnos/{id}` | Consultar un alumno |
 | `POST` | `/api/alumnos` | Crear un alumno |
 | `PUT` | `/api/alumnos/{id}` | Actualizar un alumno |
@@ -246,6 +278,14 @@ Invoke-RestMethod "http://localhost:8080/api/franjas-horarias"
 Para crear o actualizar un alumno se envía `dni`, `nombre`, `apellidos`,
 `email` (opcional) y `grupoId`. Para un profesor se envía `dni`, `nombre`,
 `apellidos` y `email` (opcional). Los DNI deben tener ocho cifras y una letra.
+
+Para crear una cuenta se envía `password`, `profesorId` y `perfil`
+(`GESTION_PERMISOS` o `GESTION_CATALOGOS`); el identificador se obtiene del
+correo del profesor seleccionado. La contraseña debe tener al menos 12
+caracteres. Para cambiar la propia contraseña se envían `contrasenaActual` y
+`contrasenaNueva`; una contraseña actual incorrecta devuelve `400`. No se puede
+eliminar la propia cuenta ni retirar o eliminar la última cuenta con permiso de
+gestión de catálogos.
 
 Un grupo recibe `curso` (por ejemplo `1º ESO` o `2º Bachillerato`) y `seccion`
 (`A` o `B`); la API genera automáticamente el código del grupo. Una franja

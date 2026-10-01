@@ -9,10 +9,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/recrear-bbdd.sql:/docker-entrypoint-initdb.d/01-recrear-bbdd.sql:ro
-      - ./db/recrear-bbdd.sql:/scripts/recrear-bbdd.sql:ro
-      - ./db/migrar-bbdd-normalizada.sql:/scripts/migrar-bbdd-normalizada.sql:ro
-      - ./db/cargar-datos-estadisticas.sql:/scripts/cargar-datos-estadisticas.sql:ro
+      - ./db/esquema.sql:/docker-entrypoint-initdb.d/01-esquema.sql:ro
+      - ./db/datos-prueba.sql:/docker-entrypoint-initdb.d/02-datos-prueba.sql:ro
+      - ./db:/scripts:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -29,10 +28,8 @@ services:
       DB_URL: jdbc:postgresql://db:5432/ies_reyes
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      AUTH_CATALOG_USERNAME: ${AUTH_CATALOG_USERNAME:-catalogo}
-      AUTH_CATALOG_PASSWORD: ${AUTH_CATALOG_PASSWORD:-dev-catalogo-cambia}
-      AUTH_PERMISSIONS_USERNAME: ${AUTH_PERMISSIONS_USERNAME:-salidas}
-      AUTH_PERMISSIONS_PASSWORD: ${AUTH_PERMISSIONS_PASSWORD:-dev-salidas-cambia}
+      AUTH_INITIAL_PASSWORD: ${AUTH_INITIAL_PASSWORD:-dev-catalogo-cambia}
+      AUTH_INITIAL_PROFESOR_DNI: ${AUTH_INITIAL_PROFESOR_DNI:-00000001A}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     depends_on:
       db:

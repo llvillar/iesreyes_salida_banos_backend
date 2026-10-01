@@ -10,6 +10,7 @@ import type {
   PermisoNuevo,
   Profesor,
   ProfesorNuevo,
+  UsuarioApp,
   UsuarioSesion,
 } from './types'
 
@@ -57,11 +58,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  iniciarSesion: async (username: string, password: string) => {
+  iniciarSesion: async (email: string, password: string) => {
     await cargarTokenCsrf()
     return request<UsuarioSesion>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     })
   },
   usuarioActual: async () => {
@@ -69,6 +70,27 @@ export const api = {
     return request<UsuarioSesion>('/api/auth/me')
   },
   cerrarSesion: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  cambiarContrasena: (contrasenaActual: string, contrasenaNueva: string) =>
+    request<void>('/api/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ contrasenaActual, contrasenaNueva }),
+    }),
+  listarUsuarios: () => request<UsuarioApp[]>('/api/usuarios'),
+  crearUsuario: (usuario: {
+    password: string
+    profesorId: number
+    perfil: UsuarioApp['perfil']
+  }) => request<UsuarioApp>('/api/usuarios', {
+    method: 'POST',
+    body: JSON.stringify(usuario),
+  }),
+  actualizarPerfilUsuario: (id: number, perfil: UsuarioApp['perfil']) =>
+    request<void>(`/api/usuarios/${id}/perfil`, {
+      method: 'PUT',
+      body: JSON.stringify({ perfil }),
+    }),
+  eliminarUsuario: (id: number) =>
+    request<void>(`/api/usuarios/${id}`, { method: 'DELETE' }),
   listarAlumnos: () => request<Alumno[]>('/api/alumnos'),
   crearAlumno: (alumno: AlumnoNuevo) =>
     request<Alumno>('/api/alumnos', { method: 'POST', body: JSON.stringify(alumno) }),

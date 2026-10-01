@@ -1,5 +1,7 @@
 package es.ies.reyes.gestion.banos.controllers;
 
+import es.ies.reyes.gestion.banos.dto.CambioContrasenaRequest;
+import es.ies.reyes.gestion.banos.services.UsuarioAppService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -29,12 +32,15 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final UsuarioAppService usuarioService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
-            SecurityContextRepository securityContextRepository) {
+            SecurityContextRepository securityContextRepository,
+            UsuarioAppService usuarioService) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
+        this.usuarioService = usuarioService;
     }
 
     @GetMapping("/csrf")
@@ -48,7 +54,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(login.username(), login.password()));
+                UsernamePasswordAuthenticationToken.unauthenticated(login.email(), login.password()));
         if (request.getSession(false) != null) {
             request.changeSessionId();
         }
@@ -62,6 +68,14 @@ public class AuthController {
     @GetMapping("/me")
     public UserResponse me(Authentication authentication) {
         return userResponse(authentication);
+    }
+
+    @PutMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cambiarContrasena(
+            Authentication authentication,
+            @Valid @RequestBody CambioContrasenaRequest request) {
+        usuarioService.cambiarContrasena(authentication.getName(), request);
     }
 
     @PostMapping("/logout")
@@ -89,13 +103,13 @@ public class AuthController {
         return new UserResponse(authentication.getName(), role);
     }
 
-    public record LoginRequest(@NotBlank String username, @NotBlank String password) {
+    public record LoginRequest(@NotBlank String email, @NotBlank String password) {
     }
 
     public record CsrfResponse(String token) {
     }
 
-    public record UserResponse(String username, String role) {
+    public record UserResponse(String email, String role) {
     }
 
     public record ErrorResponse(String detail) {

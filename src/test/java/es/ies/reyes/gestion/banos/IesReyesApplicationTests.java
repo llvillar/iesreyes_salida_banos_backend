@@ -10,6 +10,7 @@ import es.ies.reyes.gestion.banos.repositories.FranjaHorariaRepository;
 import es.ies.reyes.gestion.banos.repositories.GrupoRepository;
 import es.ies.reyes.gestion.banos.repositories.PermisoBanoRepository;
 import es.ies.reyes.gestion.banos.repositories.ProfesorRepository;
+import es.ies.reyes.gestion.banos.repositories.UsuarioAppRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ class IesReyesApplicationTests {
     private ProfesorRepository profesorRepository;
 
     @Autowired
+    private UsuarioAppRepository usuarioRepository;
+
+    @Autowired
     private GrupoRepository grupoRepository;
 
     @Autowired
@@ -60,6 +64,7 @@ class IesReyesApplicationTests {
 
     @BeforeEach
     void prepararCatalogos() {
+        usuarioRepository.deleteAll();
         permisoRepository.deleteAll();
         alumnoRepository.deleteAll();
         profesorRepository.deleteAll();
