@@ -47,6 +47,8 @@ export interface PermisoNuevo {
 }
 
 export interface FiltrosPermisos {
+  desde?: string
+  hasta?: string
   grupoId?: number
   alumnoId?: number
   profesorId?: number

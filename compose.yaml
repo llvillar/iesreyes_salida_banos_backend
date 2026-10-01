@@ -1,6 +1,8 @@
 services:
   db:
     image: postgres:17-alpine
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ies_reyes
       POSTGRES_USER: ${DB_USERNAME:-postgres}
@@ -10,6 +12,7 @@ services:
       - ./db/recrear-bbdd.sql:/docker-entrypoint-initdb.d/01-recrear-bbdd.sql:ro
       - ./db/recrear-bbdd.sql:/scripts/recrear-bbdd.sql:ro
       - ./db/migrar-bbdd-normalizada.sql:/scripts/migrar-bbdd-normalizada.sql:ro
+      - ./db/cargar-datos-estadisticas.sql:/scripts/cargar-datos-estadisticas.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

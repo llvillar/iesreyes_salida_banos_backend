@@ -67,11 +67,16 @@ Spring Boot directamente en tu PC, define `SESSION_COOKIE_SECURE=false`.
 ## Frontend web
 
 El frontend está en `frontend/` y ofrece un formulario para registrar permisos,
-un historial filtrable y una sección de administración para dar de alta,
-modificar y eliminar alumnos, profesores, grupos y franjas horarias. Al crear o
-editar un alumno se debe seleccionar su grupo. La interfaz es adaptable a
-móvil. Necesitas instalar Node.js LTS, que incluye `npm`, y abrir una terminal
-nueva después de instalarlo. Comprueba que ambos comandos están disponibles:
+un historial filtrable por rango inclusivo de fechas (con navegación al día
+anterior o siguiente) y paginado de cinco en cinco, un top 10 de alumnos con
+más permisos en ese periodo y una sección de administración para dar de alta,
+modificar y eliminar alumnos,
+profesores, grupos y franjas horarias. El ranking respeta el rango de fechas
+seleccionado, aunque se apliquen filtros de alumno o profesor en el historial.
+Al crear o editar un alumno se debe seleccionar su grupo. La interfaz es
+adaptable a móvil. Necesitas instalar Node.js LTS, que incluye `npm`, y abrir
+una terminal nueva después de instalarlo. Comprueba que ambos comandos están
+disponibles:
 
 ```powershell
 node --version
@@ -133,6 +138,19 @@ ejecuta `.\scripts\recrear-bbdd.ps1`; el script solicita confirmación. Esta
 acción elimina los datos existentes de `ies_reyes`. No es necesaria para una
 migración normal. También se puede borrar el volumen completo con
 `docker compose down -v`.
+
+Para añadir datos sintéticos de estadísticas a una base existente sin borrar
+los catálogos ni permisos actuales, ejecuta:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\cargar-datos-estadisticas.ps1
+```
+
+El script añade 36 alumnos y 12 profesores ficticios, y genera 6.000 permisos
+distribuidos entre días lectivos desde el 1 de enero de 2026 hasta hoy. Se
+puede volver a ejecutar: reemplaza únicamente los permisos asociados a los
+alumnos sintéticos de esta carga. Sus correos usan el dominio reservado
+`example.test`.
 
 Las credenciales predeterminadas (`postgres`) son solo para desarrollo local.
 Puedes personalizarlas definiendo `DB_USERNAME` y `DB_PASSWORD` en el entorno

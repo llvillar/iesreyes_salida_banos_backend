@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import {
-  ArrowDownUp,
+  CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   CircleHelp,
   Clock3,
@@ -15,6 +17,7 @@ import {
   Search,
   ShieldCheck,
   Toilet,
+  Trophy,
   UsersRound,
   X,
 } from 'lucide-react'
@@ -40,6 +43,7 @@ const fechaLarga = new Intl.DateTimeFormat('es-ES', {
   month: 'long',
   year: 'numeric',
 })
+const permisosPorPagina = 5
 
 function nombreCompleto(persona: { nombre: string; apellidos: string }) {
   return `${persona.apellidos}, ${persona.nombre}`
@@ -55,6 +59,12 @@ function compararApellidos(
 
 function horaVisible(hora: string) {
   return hora.slice(0, 5)
+}
+
+function desplazarFecha(fecha: string, dias: number) {
+  const [anio, mes, dia] = fecha.split('-').map(Number)
+  const fechaNueva = new Date(Date.UTC(anio, mes - 1, dia + dias))
+  return fechaNueva.toISOString().slice(0, 10)
 }
 
 function errorComoTexto(error: unknown) {
@@ -201,7 +211,12 @@ function AuthenticatedApp({
   const [profesores, setProfesores] = useState<Profesor[]>([])
   const [franjas, setFranjas] = useState<FranjaHoraria[]>([])
   const [permisos, setPermisos] = useState<Permiso[]>([])
+  const [permisosPeriodo, setPermisosPeriodo] = useState<Permiso[]>([])
+  const [cargandoRanking, setCargandoRanking] = useState(true)
+  const [paginaHistorial, setPaginaHistorial] = useState(0)
   const [fecha, setFecha] = useState(fechaHoy)
+  const [historialDesde, setHistorialDesde] = useState(fechaHoy)
+  const [historialHasta, setHistorialHasta] = useState(fechaHoy)
   const [grupoId, setGrupoId] = useState('')
   const [alumnoId, setAlumnoId] = useState('')
   const [profesorId, setProfesorId] = useState('')
@@ -243,15 +258,23 @@ function AuthenticatedApp({
 
   useEffect(() => {
     let activo = true
-    setCargandoPermisos(true)
-    setError('')
+    if (historialDesde && historialHasta && historialDesde > historialHasta) {
+      setError('La fecha inicial no puede ser posterior a la fecha final.')
+      setPermisos([])
+      setCargandoPermisos(false)
+      return () => { activo = false }
+    }
     const filtros: FiltrosPermisos = {
+      desde: historialDesde || undefined,
+      hasta: historialHasta || undefined,
       grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
       alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
       profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
       franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
     }
-    api.listarPermisos(fecha, filtros)
+    setCargandoPermisos(true)
+    setError('')
+    api.listarPermisos(undefined, filtros)
       .then((lista) => {
         if (activo) setPermisos(lista)
       })
@@ -262,7 +285,32 @@ function AuthenticatedApp({
         if (activo) setCargandoPermisos(false)
       })
     return () => { activo = false }
-  }, [fecha, filtroGrupoHistorial, filtroAlumnoHistorial, filtroProfesorHistorial, filtroFranjaHistorial])
+  }, [historialDesde, historialHasta, filtroGrupoHistorial, filtroAlumnoHistorial, filtroProfesorHistorial, filtroFranjaHistorial])
+
+  useEffect(() => {
+    let activo = true
+    if (historialDesde && historialHasta && historialDesde > historialHasta) {
+      setPermisosPeriodo([])
+      setCargandoRanking(false)
+      return () => { activo = false }
+    }
+    setCargandoRanking(true)
+    setPermisosPeriodo([])
+    api.listarPermisos(undefined, {
+      desde: historialDesde || undefined,
+      hasta: historialHasta || undefined,
+    })
+      .then((lista) => {
+        if (activo) setPermisosPeriodo(lista)
+      })
+      .catch((cause: unknown) => {
+        if (activo) setError(errorComoTexto(cause))
+      })
+      .finally(() => {
+        if (activo) setCargandoRanking(false)
+      })
+    return () => { activo = false }
+  }, [historialDesde, historialHasta])
 
   const permisosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLocaleLowerCase('es')
@@ -278,6 +326,18 @@ function AuthenticatedApp({
     )
   }, [busqueda, permisos])
 
+  useEffect(() => {
+    setPaginaHistorial(0)
+  }, [
+    busqueda,
+    historialDesde,
+    historialHasta,
+    filtroGrupoHistorial,
+    filtroAlumnoHistorial,
+    filtroProfesorHistorial,
+    filtroFranjaHistorial,
+  ])
+
   const crearPermiso = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
@@ -291,7 +351,14 @@ function AuthenticatedApp({
         fecha,
         hora: `${hora}:00`,
       })
-      const actualizados = await api.listarPermisos(fecha, {
+      if (historialDesde && historialHasta && historialDesde > historialHasta) {
+        setAviso('Permiso registrado correctamente.')
+        setHora(horaActual())
+        return
+      }
+      const actualizados = await api.listarPermisos(undefined, {
+        desde: historialDesde || undefined,
+        hasta: historialHasta || undefined,
         grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
         alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
         profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
@@ -307,7 +374,27 @@ function AuthenticatedApp({
     }
   }
 
-  const alumnosHoy = new Set(permisos.map((permiso) => permiso.alumno.id)).size
+  const alumnosAtendidos = new Set(permisos.map((permiso) => permiso.alumno.id)).size
+  const totalPaginasHistorial = Math.ceil(permisosFiltrados.length / permisosPorPagina)
+  const permisosPagina = permisosFiltrados.slice(
+    paginaHistorial * permisosPorPagina,
+    (paginaHistorial + 1) * permisosPorPagina,
+  )
+  const primerPermisoPagina = permisosFiltrados.length ? paginaHistorial * permisosPorPagina + 1 : 0
+  const ultimoPermisoPagina = Math.min((paginaHistorial + 1) * permisosPorPagina, permisosFiltrados.length)
+  const topAlumnos = [...permisosPeriodo.reduce((ranking, permiso) => {
+    const alumno = ranking.get(permiso.alumno.id)
+    if (alumno) {
+      alumno.permisos += 1
+    } else {
+      ranking.set(permiso.alumno.id, { alumno: permiso.alumno, permisos: 1 })
+    }
+    return ranking
+  }, new Map<number, { alumno: Alumno; permisos: number }>()).values()]
+    .sort((a, b) => b.permisos - a.permisos ||
+      compararApellidos(a.alumno, b.alumno))
+    .slice(0, 10)
+  const maxPermisosTop = topAlumnos[0]?.permisos ?? 0
   const franjasOrdenadas = [...franjas].sort((a, b) => a.numero - b.numero)
   const gruposOrdenados = [...grupos].sort((a, b) =>
     a.codigo.localeCompare(b.codigo, 'es', { sensitivity: 'base' }))
@@ -321,10 +408,23 @@ function AuthenticatedApp({
   const opcionesAlumno = alumnosDelGrupo.map((alumno) => ({ id: alumno.id, etiqueta: nombreCompleto(alumno) }))
   const opcionesProfesor = profesoresOrdenados.map((profesor) => ({ id: profesor.id, etiqueta: nombreCompleto(profesor) }))
   const hayFiltrosHistorial = Boolean(
-    busqueda || filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
+    historialDesde !== fechaHoy() || historialHasta !== fechaHoy() ||
+      busqueda || filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
   )
+  const desplazarRangoHistorial = (dias: number) => {
+    const desde = historialDesde || historialHasta || fechaHoy()
+    const hasta = historialHasta || historialDesde || fechaHoy()
+    setHistorialDesde(desplazarFecha(desde, dias))
+    setHistorialHasta(desplazarFecha(hasta, dias))
+  }
+  const irAHoy = () => {
+    const hoy = fechaHoy()
+    setHistorialDesde(hoy)
+    setHistorialHasta(hoy)
+  }
   const limpiarFiltrosHistorial = () => {
     setBusqueda('')
+    irAHoy()
     setFiltroGrupoHistorial('')
     setFiltroAlumnoHistorial('')
     setFiltroProfesorHistorial('')
@@ -390,16 +490,16 @@ function AuthenticatedApp({
             <div className="current-date"><Clock3 size={16} />{fechaLarga.format(new Date(`${fechaHoy()}T12:00:00`))}</div>
           </section>
 
-          <section className="stats-grid" aria-label="Resumen del día">
+          <section className="stats-grid" aria-label="Resumen del periodo seleccionado">
             <article className="stat-card">
-              <div className="stat-top"><span>Permisos del día</span><span className="stat-icon icon-blue"><FileClock size={18} /></span></div>
-              <div className="stat-value">{fecha === fechaHoy() ? permisos.length : '—'}</div>
-              <div className="stat-foot">Registrados para hoy</div>
+              <div className="stat-top"><span>Permisos en el periodo</span><span className="stat-icon icon-blue"><FileClock size={18} /></span></div>
+              <div className="stat-value">{permisos.length}</div>
+              <div className="stat-foot">Entre las fechas seleccionadas</div>
             </article>
             <article className="stat-card">
-              <div className="stat-top"><span>Alumnos atendidos</span><span className="stat-icon icon-green"><UsersRound size={18} /></span></div>
-              <div className="stat-value">{fecha === fechaHoy() ? alumnosHoy : '—'}</div>
-              <div className="stat-foot">Alumnos diferentes</div>
+              <div className="stat-top"><span>Alumnos atendidos en el periodo</span><span className="stat-icon icon-green"><UsersRound size={18} /></span></div>
+              <div className="stat-value">{alumnosAtendidos}</div>
+              <div className="stat-foot">Alumnos diferentes en el rango</div>
             </article>
             <article className="stat-card stat-highlight">
               <div className="stat-top"><span>Estado del sistema</span><span className="stat-icon icon-white"><ShieldCheck size={18} /></span></div>
@@ -491,13 +591,22 @@ function AuthenticatedApp({
                   <div className="panel-title-icon panel-title-icon-light"><FileClock size={18} /></div>
                   <div><h2>Historial de permisos</h2><p>Consulta y filtra las salidas registradas.</p></div>
                 </div>
-                <button className="icon-button" type="button" onClick={() => setFecha(fechaHoy())} title="Mostrar los permisos de hoy" aria-label="Mostrar permisos de hoy">
-                  <ArrowDownUp size={17} />
+                <button className="icon-button" type="button" onClick={irAHoy} title="Mostrar los permisos de hoy" aria-label="Mostrar permisos de hoy">
+                  <CalendarDays size={17} />
                 </button>
               </div>
               <div className="history-tools">
                 <div className="search-box"><Search size={16} /><input value={busqueda} onChange={(event) => setBusqueda(event.target.value)} placeholder="Buscar alumno, grupo…" aria-label="Buscar en permisos" /></div>
-                <label className="date-filter"><ListFilter size={15} /><span className="sr-only">Filtrar por fecha</span><input type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} /></label>
+                <div className="day-navigation" aria-label="Navegar por fechas">
+                  <button type="button" onClick={() => desplazarRangoHistorial(-1)} title="Desplazar el rango un día atrás" aria-label="Día anterior"><ChevronLeft size={16} /><span>Anterior</span></button>
+                  <button type="button" onClick={() => desplazarRangoHistorial(1)} title="Desplazar el rango un día adelante" aria-label="Día siguiente"><span>Siguiente</span><ChevronRight size={16} /></button>
+                </div>
+              </div>
+              <div className="history-date-range">
+                <label className="history-filter-field"><span>Desde</span><input type="date" value={historialDesde} onChange={(event) => setHistorialDesde(event.target.value)} aria-label="Fecha inicial del historial" /></label>
+                <span className="date-range-separator">—</span>
+                <label className="history-filter-field"><span>Hasta</span><input type="date" value={historialHasta} onChange={(event) => setHistorialHasta(event.target.value)} aria-label="Fecha final del historial" /></label>
+                <span className="range-hint"><ListFilter size={14} />Rango inclusivo</span>
               </div>
               <div className="history-filters">
                 <label className="history-filter-field"><span>Grupo</span><select value={filtroGrupoHistorial} onChange={(event) => setFiltroGrupoHistorial(event.target.value)} aria-label="Filtrar historial por grupo">
@@ -521,7 +630,7 @@ function AuthenticatedApp({
                 <div className="table-state"><LoaderCircle className="spin" size={22} /><span>Cargando permisos…</span></div>
               ) : permisosFiltrados.length ? (
                 <div className="permission-list">
-                  {permisosFiltrados.map((permiso) => (
+                  {permisosPagina.map((permiso) => (
                     <div className="permission-row" key={permiso.id}>
                       <div className="student-cell">
                         <span className="avatar student-avatar">{permiso.alumno.nombre.slice(0, 1)}{permiso.alumno.apellidos.slice(0, 1)}</span>
@@ -537,14 +646,69 @@ function AuthenticatedApp({
                 <div className="table-state empty-state">
                   <span className="empty-icon"><FileClock size={22} /></span>
                   <strong>{hayFiltrosHistorial ? 'No hay resultados' : 'Todavía no hay permisos'}</strong>
-                  <span>{hayFiltrosHistorial ? 'Prueba con otros filtros.' : 'Los permisos registrados para esta fecha aparecerán aquí.'}</span>
+                  <span>{hayFiltrosHistorial ? 'Prueba con otras fechas o filtros.' : 'Los permisos registrados para hoy aparecerán aquí.'}</span>
                 </div>
               )}
               <div className="list-footer">
-                <span>{permisosFiltrados.length} {permisosFiltrados.length === 1 ? 'permiso' : 'permisos'}{hayFiltrosHistorial ? ' encontrados' : ''}</span>
+                <span>{permisosFiltrados.length
+                  ? `Mostrando ${primerPermisoPagina}–${ultimoPermisoPagina} de ${permisosFiltrados.length} permisos`
+                  : `0 permisos${hayFiltrosHistorial ? ' encontrados' : ''}`}</span>
+                {totalPaginasHistorial > 1 && (
+                  <nav className="history-pagination" aria-label="Paginación del historial">
+                    <button
+                      type="button"
+                      onClick={() => setPaginaHistorial((pagina) => Math.max(0, pagina - 1))}
+                      disabled={paginaHistorial === 0}
+                      aria-label="Página anterior"
+                      title="Página anterior"
+                    ><ChevronLeft size={15} /></button>
+                    <span aria-live="polite">{paginaHistorial + 1} / {totalPaginasHistorial}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPaginaHistorial((pagina) => Math.min(totalPaginasHistorial - 1, pagina + 1))}
+                      disabled={paginaHistorial >= totalPaginasHistorial - 1}
+                      aria-label="Página siguiente"
+                      title="Página siguiente"
+                    ><ChevronRight size={15} /></button>
+                  </nav>
+                )}
                 <span className="live-indicator"><span /> Datos actualizados</span>
               </div>
             </article>
+          </section>
+          <section className="panel ranking-panel" aria-labelledby="ranking-title">
+            <div className="ranking-heading">
+              <div className="panel-heading">
+                <div className="panel-title-icon ranking-icon"><Trophy size={18} /></div>
+                <div><h2 id="ranking-title">Alumnos con más permisos</h2><p>Top 10 del periodo seleccionado, sin aplicar los filtros de alumno o profesor.</p></div>
+              </div>
+              <span className="ranking-period">{historialDesde === historialHasta
+                ? fechaLarga.format(new Date(`${historialDesde}T12:00:00`))
+                : `${historialDesde} — ${historialHasta}`}</span>
+            </div>
+            {cargandoRanking ? (
+              <div className="ranking-empty"><LoaderCircle className="spin" size={20} />Cargando ranking…</div>
+            ) : topAlumnos.length ? (
+              <ol className="ranking-list">
+                {topAlumnos.map(({ alumno, permisos: cantidad }, index) => (
+                  <li className="ranking-row" key={alumno.id}>
+                    <span className={`ranking-position${index < 3 ? ` ranking-position-${index + 1}` : ''}`}>{index + 1}</span>
+                    <span className="ranking-student">
+                      <strong>{nombreCompleto(alumno)}</strong>
+                      <small>{alumno.grupo.codigo}</small>
+                    </span>
+                    <span className="ranking-bar-track" aria-hidden="true"><span style={{ width: `${(cantidad / maxPermisosTop) * 100}%` }} /></span>
+                    <strong className="ranking-count">{cantidad}<small>{cantidad === 1 ? ' permiso' : ' permisos'}</small></strong>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="ranking-empty">
+                {historialDesde && historialHasta && historialDesde > historialHasta
+                  ? 'Corrige el rango de fechas para ver el ranking.'
+                  : 'No hay permisos registrados en este periodo.'}
+              </div>
+            )}
           </section>
           <footer className="page-footer">© {new Date().getFullYear()} IES Reyes <span>·</span> Gestión de permisos de baño</footer>
           </>}

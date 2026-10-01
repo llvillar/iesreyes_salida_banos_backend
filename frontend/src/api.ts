@@ -100,6 +100,8 @@ export const api = {
   listarPermisos: (fecha?: string, filtros: FiltrosPermisos = {}) => {
     const params = new URLSearchParams()
     if (fecha) params.set('fecha', fecha)
+    if (filtros.desde) params.set('desde', filtros.desde)
+    if (filtros.hasta) params.set('hasta', filtros.hasta)
     if (filtros.grupoId) params.set('grupoId', String(filtros.grupoId))
     if (filtros.alumnoId) params.set('alumnoId', String(filtros.alumnoId))
     if (filtros.profesorId) params.set('profesorId', String(filtros.profesorId))
