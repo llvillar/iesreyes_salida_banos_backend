@@ -9,8 +9,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - preproduccion_postgres_data:/var/lib/postgresql/data
-      - ./db/esquema.sql:/docker-entrypoint-initdb.d/01-esquema.sql:ro
-      - ./db/datos-prueba.sql:/docker-entrypoint-initdb.d/02-datos-prueba.sql:ro
+      - ./db/01-inicializar.sql:/docker-entrypoint-initdb.d/01-inicializar.sql:ro
       - ./db:/scripts:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]

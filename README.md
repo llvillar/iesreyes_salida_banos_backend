@@ -27,10 +27,12 @@ de entorno para tu instalación:
 | `DB_USERNAME` | `postgres` |
 | `DB_PASSWORD` | `postgres` |
 
-El esquema completo de PostgreSQL está en `db/esquema.sql` y los datos ficticios
-de prueba en `db/datos-prueba.sql`. En desarrollo, Compose ejecuta ambos, en ese
-orden, al inicializar un volumen nuevo. La aplicación también actualiza el
-esquema al arrancar. En desarrollo se puede ejecutar desde
+El esquema y los catálogos iniciales están en `db/01-inicializar.sql`; los datos
+de prueba históricos, en `db/02-datos-prueba.sql`. Para preparar desarrollo
+desde cero utiliza los dos scripts de PowerShell documentados abajo. La
+aplicación aplica las migraciones de `src/main/resources/db/migration` antes
+de actualizar el esquema; las cuentas existentes conservan sus datos y reciben
+el correo de su profesor asociado. En desarrollo se puede ejecutar desde
 IntelliJ o con `mvnw spring-boot:run`; las pruebas automatizadas usan H2 en
 memoria y no requieren una instancia de PostgreSQL.
 
@@ -57,10 +59,13 @@ Las contraseñas deben tener al menos 12 caracteres y no superar 72 bytes en
 UTF-8. No hay registro público: las altas y los permisos los controla un usuario
 de gestión de catálogos.
 
-No uses contraseñas reales en el repositorio ni las reutilices. El Compose de
-desarrollo crea la cuenta inicial vinculada al profesor de DNI `00000001A`, con
-contraseña `dev-catalogo-cambia`; su identificador será el correo de ese
-profesor. Son valores de prueba y no deben usarse fuera del PC local.
+No uses contraseñas reales en el repositorio ni las reutilices. El script local
+de puesta a punto crea `llvillar@gmail.com` con contraseña `1234` y perfil
+`GESTION_CATALOGOS` (gestión completa). Es una credencial débil, guardada como
+hash y exclusiva del entorno local: cámbiala antes de cualquier uso compartido
+y no la uses fuera de tu PC. Para preproducción, configura una contraseña
+segura. La cuenta inicial de producción solo se crea si la tabla de usuarios
+está vacía.
 Preproducción exige configurar estas dos variables. Puedes copiar el archivo de
 ejemplo, editar los valores y mantener `.env` sin añadirlo al repositorio:
 
@@ -122,62 +127,36 @@ Durante el desarrollo, Vite reenvía las peticiones `/api` a
 
 ## Ejecutar con Docker
 
-Necesitas Docker Desktop abierto. Desde la carpeta del proyecto, ejecuta:
-
-```bash
-docker compose up --build
-```
-
-Compose inicia PostgreSQL y la API; la API queda disponible en
-`http://localhost:8080`. La base usa un volumen Docker para conservar los datos
-al detener los contenedores. Para parar la aplicación, pulsa `Ctrl+C` y ejecuta
-`docker compose down`. Para borrar también la base y sus datos:
-`docker compose down -v`.
-
-Al crear un volumen nuevo, PostgreSQL ejecuta `db/esquema.sql` y después
-`db/datos-prueba.sql`; crea las tablas normalizadas (incluida `usuarios_app`) y
-carga grupos, seis franjas, seis profesores, doce alumnos y seis permisos de
-prueba. El profesor `00000001A` tiene correo `marta.lopez@example.test`; al
-arrancar, la aplicación crea para él la cuenta inicial de gestión con la
-contraseña configurada en `AUTH_INITIAL_PASSWORD`. Para una base PostgreSQL
-vacía creada manualmente, ejecuta los dos scripts en este orden:
+Necesitas Docker Desktop abierto. Para preparar la base de desarrollo desde
+cero, abre PowerShell en la carpeta del proyecto y ejecuta:
 
 ```powershell
-psql -v ON_ERROR_STOP=1 -d ies_reyes -f .\db\esquema.sql
-psql -v ON_ERROR_STOP=1 -d ies_reyes -f .\db\datos-prueba.sql
+.\scripts\poner-a-punto.ps1
 ```
 
-Los scripts de creación y carga eliminan y sustituyen las tablas de la
-aplicación: utilízalos solo en una base nueva o si quieres reiniciarla. Para
-migrar el esquema antiguo en un volumen existente y conservar
-los permisos que ya tenga, abre PowerShell en el proyecto y ejecuta:
+El script pide escribir `RECREAR`, elimina el volumen de desarrollo y todos sus
+datos, crea el esquema y los catálogos iniciales, configura la cuenta local y
+arranca la API. La API queda disponible en `http://localhost:8080`. Acceso local:
+`llvillar@gmail.com` / `1234`. Esta puesta a punto es destructiva y solo debe
+usarse para reiniciar la base local; no la ejecutes contra datos que quieras
+conservar.
+
+Para cargar datos de historial de prueba, ejecuta el segundo script:
 
 ```powershell
-.\scripts\migrar-bbdd-normalizada.ps1
+.\scripts\cargar-datos-prueba.ps1
 ```
 
-La migración solicita confirmación, detiene la API mientras modifica el esquema
-y conserva los permisos existentes. Se ejecuta una sola vez sobre la base
-antigua.
-
-Para borrar y recrear **todos** los datos de la base Docker con los ejemplos,
-ejecuta `.\scripts\recrear-bbdd.ps1`; el script solicita confirmación. Esta
-acción elimina los datos existentes de `ies_reyes`. No es necesaria para una
-migración normal. También se puede borrar el volumen completo con
-`docker compose down -v`.
-
-Para añadir datos sintéticos de estadísticas a una base existente sin borrar
-los catálogos ni permisos actuales, ejecuta:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\cargar-datos-estadisticas.ps1
-```
-
-El script añade 36 alumnos y 12 profesores ficticios, y genera 6.000 permisos
-distribuidos entre días lectivos desde el 1 de enero de 2026 hasta hoy. Se
-puede volver a ejecutar: reemplaza únicamente los permisos asociados a los
-alumnos sintéticos de esta carga. Sus correos usan el dominio reservado
+Añade 50 alumnos y 10 profesores ficticios, y genera 5.000 permisos en días
+lectivos desde el 1 de enero del año actual hasta hoy. Se puede volver a
+ejecutar: reemplaza el historial de esos alumnos sintéticos sin borrar los
+permisos de otros alumnos. Los correos de prueba usan el dominio reservado
 `example.test`.
+
+Después de la primera preparación, puedes iniciar los servicios con
+`docker compose up --build`; se conserva el volumen y los datos al detenerlos.
+Para parar los contenedores ejecuta `docker compose down`. Para volver a empezar
+desde cero, ejecuta otra vez el script de puesta a punto y confirma el borrado.
 
 Las credenciales predeterminadas (`postgres`) son solo para desarrollo local.
 Puedes personalizarlas definiendo `DB_USERNAME` y `DB_PASSWORD` en el entorno
@@ -223,8 +202,9 @@ Para borrar también la base de datos de preproducción y sus datos de prueba:
 docker compose -f compose.preproduccion.yaml down -v
 ```
 
-La primera inicialización ejecuta `db/esquema.sql` y
-`db/datos-prueba.sql`. La variable `$env:DB_PASSWORD` solo se aplica a una base
+La primera inicialización ejecuta `db/01-inicializar.sql`, que crea el esquema,
+los catálogos iniciales y el profesor de ejemplo
+`profesor.inicial@example.test`. La variable `$env:DB_PASSWORD` solo se aplica a una base
 de datos creada por primera vez; cambiarla no modifica la contraseña de un
 volumen existente. Esta configuración sirve para pruebas en el PC, no para
 publicar el sistema en Internet.
