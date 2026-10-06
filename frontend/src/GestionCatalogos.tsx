@@ -58,6 +58,7 @@ function GestionCatalogos() {
   const [aviso, setAviso] = useState('')
   const [filtroApellidos, setFiltroApellidos] = useState('')
   const [filtroProfesores, setFiltroProfesores] = useState('')
+  const [filtroGrupos, setFiltroGrupos] = useState('')
   const [filtroGrupoId, setFiltroGrupoId] = useState('')
   const [apellidosAscendentes, setApellidosAscendentes] = useState(true)
   const [profesoresAscendentes, setProfesoresAscendentes] = useState(true)
@@ -212,6 +213,11 @@ function GestionCatalogos() {
         ? compararPersonasPorApellidos(a, b)
         : compararPersonasPorApellidos(b, a)
     })
+  const gruposFiltrados = grupos.filter((grupo) => {
+    const nombreGrupo = normalizarBusqueda(`${grupo.codigo} ${grupo.curso} ${grupo.seccion}`)
+    const terminos = normalizarBusqueda(filtroGrupos).split(/\s+/).filter(Boolean)
+    return terminos.every((termino) => nombreGrupo.includes(termino))
+  })
 
   return (
     <>
@@ -285,7 +291,7 @@ function GestionCatalogos() {
           <div className="history-heading">
             <div className="panel-heading"><div className="panel-title-icon panel-title-icon-light"><Plus size={18} /></div>
               <div><h2>{titulos[tipo]}</h2><p>{tipo === 'alumnos' ? 'Cada alumno pertenece a un grupo.' : 'Registros disponibles en el centro.'}</p></div></div>
-            <span className="catalog-count">{tipo === 'alumnos' ? alumnosFiltrados.length : tipo === 'profesores' ? profesoresFiltrados.length : tipo === 'grupos' ? grupos.length : franjas.length}</span>
+            <span className="catalog-count">{tipo === 'alumnos' ? alumnosFiltrados.length : tipo === 'profesores' ? profesoresFiltrados.length : tipo === 'grupos' ? gruposFiltrados.length : franjas.length}</span>
           </div>
           {tipo === 'alumnos' && <div className="catalog-filters">
             <label className="search-box"><Search size={16} /><input value={filtroApellidos} onChange={(event) => setFiltroApellidos(event.target.value)} placeholder="Filtrar por nombre o apellidos…" aria-label="Filtrar alumnos por nombre o apellidos" /></label>
@@ -321,6 +327,12 @@ function GestionCatalogos() {
               </button>
             </div>
           </div>}
+          {tipo === 'grupos' && <div className="catalog-filters">
+            <label className="search-box"><Search size={16} /><input value={filtroGrupos} onChange={(event) => setFiltroGrupos(event.target.value)} placeholder="Filtrar por nombre del grupo…" aria-label="Filtrar grupos por nombre" /></label>
+            <button className="clear-filters-button" type="button" onClick={() => setFiltroGrupos('')} disabled={!filtroGrupos}>
+              Limpiar
+            </button>
+          </div>}
           {cargando ? <div className="table-state"><LoaderCircle className="spin" size={22} /><span>Cargando catálogos…</span></div>
             : listaVacia ? <div className="table-state empty-state"><strong>No hay {titulos[tipo].toLocaleLowerCase('es')}</strong><span>Añade el primer registro con el formulario.</span></div>
               : <div className="catalog-list">
@@ -333,10 +345,10 @@ function GestionCatalogos() {
                   <div><strong>{profesor.apellidos}, {profesor.nombre}</strong><small>{profesor.dni}{profesor.email ? ` · ${profesor.email}` : ''}</small></div>
                   <RowActions onEdit={() => comenzarEdicion(profesor.id)} onDelete={() => eliminar(profesor.id, `a ${profesor.nombre} ${profesor.apellidos}`)} />
                 </div>) : <div className="table-state empty-state"><strong>No hay profesores que coincidan</strong><span>Cambia el nombre o los apellidos de búsqueda.</span></div>)}
-                {tipo === 'grupos' && grupos.map((grupo) => <div className="catalog-row" key={grupo.id}>
+                {tipo === 'grupos' && (gruposFiltrados.length ? gruposFiltrados.map((grupo) => <div className="catalog-row" key={grupo.id}>
                   <div><strong>{grupo.codigo}</strong><small>{grupo.curso} · Sección {grupo.seccion}</small></div>
                   <RowActions onEdit={() => comenzarEdicion(grupo.id)} onDelete={() => eliminar(grupo.id, `el grupo ${grupo.codigo}`)} />
-                </div>)}
+                </div>) : <div className="table-state empty-state"><strong>No hay grupos que coincidan</strong><span>Cambia el nombre del grupo de búsqueda.</span></div>)}
                 {tipo === 'franjas' && [...franjas].sort((a, b) => a.numero - b.numero).map((franja) => <div className="catalog-row" key={franja.id}>
                   <div><strong>{franja.nombre}</strong><small>Franja {franja.numero}</small></div>
                   <RowActions onEdit={() => comenzarEdicion(franja.id)} onDelete={() => eliminar(franja.id, franja.nombre)} />
