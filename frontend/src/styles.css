@@ -213,6 +213,8 @@ h1 { margin-bottom: 5px; color: #252943; font: 800 27px 'Segoe UI', Arial, sans-
 .live-indicator { display: flex; align-items: center; gap: 7px; }
 .live-indicator span { width: 6px; height: 6px; }
 .ranking-panel { margin-top: 16px; padding: 19px; }
+.criteria-panel { padding: 19px; margin-bottom: 16px; }
+.criteria-panel .history-filters { margin-bottom: 0; }
 .ranking-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .ranking-icon { background: #fff5e7; color: #e5a33b; }
 .ranking-period { color: #858a9e; font-size: 10px; text-align: right; text-transform: capitalize; }

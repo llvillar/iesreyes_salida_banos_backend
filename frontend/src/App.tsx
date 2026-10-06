@@ -168,6 +168,91 @@ function BuscadorDesplegable({
   )
 }
 
+function CriteriosPermisos({
+  desde,
+  hasta,
+  grupoId,
+  alumnoId,
+  profesorId,
+  franjaId,
+  grupos,
+  alumnos,
+  profesores,
+  franjas,
+  hayFiltros,
+  onDesde,
+  onHasta,
+  onGrupo,
+  onAlumno,
+  onProfesor,
+  onFranja,
+  onLimpiar,
+  onIrAHoy,
+  onDesplazar,
+}: {
+  desde: string
+  hasta: string
+  grupoId: string
+  alumnoId: string
+  profesorId: string
+  franjaId: string
+  grupos: Grupo[]
+  alumnos: Alumno[]
+  profesores: Profesor[]
+  franjas: FranjaHoraria[]
+  hayFiltros: boolean
+  onDesde: (value: string) => void
+  onHasta: (value: string) => void
+  onGrupo: (value: string) => void
+  onAlumno: (value: string) => void
+  onProfesor: (value: string) => void
+  onFranja: (value: string) => void
+  onLimpiar: () => void
+  onIrAHoy: () => void
+  onDesplazar: (dias: number) => void
+}) {
+  return (
+    <section className="panel criteria-panel" aria-label="Criterios del resumen y del historial">
+      <div className="history-heading">
+        <div className="panel-heading">
+          <div className="panel-title-icon"><ListFilter size={18} /></div>
+          <div><h2>Filtrar actividad</h2><p>Los criterios se aplican al resumen y al historial de permisos.</p></div>
+        </div>
+        <button className="icon-button" type="button" onClick={onIrAHoy} title="Mostrar los datos de hoy" aria-label="Mostrar datos de hoy">
+          <CalendarDays size={17} />
+        </button>
+      </div>
+      <div className="history-tools">
+        <div className="day-navigation" aria-label="Navegar por fechas">
+          <button type="button" onClick={() => onDesplazar(-1)} title="Desplazar el rango un día atrás" aria-label="Día anterior"><ChevronLeft size={16} /><span>Anterior</span></button>
+          <button type="button" onClick={() => onDesplazar(1)} title="Desplazar el rango un día adelante" aria-label="Día siguiente"><span>Siguiente</span><ChevronRight size={16} /></button>
+        </div>
+      </div>
+      <div className="history-date-range">
+        <label className="history-filter-field"><span>Desde</span><input type="date" value={desde} onChange={(event) => onDesde(event.target.value)} aria-label="Fecha inicial" /></label>
+        <span className="date-range-separator">—</span>
+        <label className="history-filter-field"><span>Hasta</span><input type="date" value={hasta} onChange={(event) => onHasta(event.target.value)} aria-label="Fecha final" /></label>
+        <span className="range-hint"><ListFilter size={14} />Rango inclusivo</span>
+      </div>
+      <div className="history-filters">
+        <label className="history-filter-field"><span>Grupo</span><select value={grupoId} onChange={(event) => onGrupo(event.target.value)} aria-label="Filtrar por grupo">
+          <option value="">Todos</option>{grupos.map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.codigo}</option>)}
+        </select></label>
+        <label className="history-filter-field"><span>Alumno</span><select value={alumnoId} onChange={(event) => onAlumno(event.target.value)} aria-label="Filtrar por alumno">
+          <option value="">Todos</option>{alumnos.map((alumno) => <option key={alumno.id} value={alumno.id}>{nombreCompleto(alumno)}</option>)}
+        </select></label>
+        <label className="history-filter-field"><span>Profesor</span><select value={profesorId} onChange={(event) => onProfesor(event.target.value)} aria-label="Filtrar por profesor">
+          <option value="">Todos</option>{profesores.map((profesor) => <option key={profesor.id} value={profesor.id}>{nombreCompleto(profesor)}</option>)}
+        </select></label>
+        <label className="history-filter-field"><span>Franja</span><select value={franjaId} onChange={(event) => onFranja(event.target.value)} aria-label="Filtrar por franja horaria">
+          <option value="">Todas</option>{franjas.map((franja) => <option key={franja.id} value={franja.id}>{franja.nombre}</option>)}
+        </select></label>
+        <button className="clear-history-filters" type="button" onClick={onLimpiar} disabled={!hayFiltros}>Limpiar filtros</button>
+      </div>
+    </section>
+  )
+}
+
 function App() {
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
   const [comprobandoSesion, setComprobandoSesion] = useState(true)
@@ -208,14 +293,12 @@ function AuthenticatedApp({
   usuario: UsuarioSesion
   onLogout: () => Promise<void>
 }) {
-  const [vista, setVista] = useState<'permisos' | 'gestion' | 'usuarios' | 'cuenta'>('permisos')
+  const [vista, setVista] = useState<'resumen' | 'permisos' | 'gestion' | 'usuarios' | 'cuenta'>('resumen')
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [profesores, setProfesores] = useState<Profesor[]>([])
   const [franjas, setFranjas] = useState<FranjaHoraria[]>([])
   const [permisos, setPermisos] = useState<Permiso[]>([])
-  const [permisosPeriodo, setPermisosPeriodo] = useState<Permiso[]>([])
-  const [cargandoRanking, setCargandoRanking] = useState(true)
   const [paginaHistorial, setPaginaHistorial] = useState(0)
   const [fecha, setFecha] = useState(fechaHoy)
   const [historialDesde, setHistorialDesde] = useState(fechaHoy)
@@ -290,31 +373,6 @@ function AuthenticatedApp({
     return () => { activo = false }
   }, [historialDesde, historialHasta, filtroGrupoHistorial, filtroAlumnoHistorial, filtroProfesorHistorial, filtroFranjaHistorial])
 
-  useEffect(() => {
-    let activo = true
-    if (historialDesde && historialHasta && historialDesde > historialHasta) {
-      setPermisosPeriodo([])
-      setCargandoRanking(false)
-      return () => { activo = false }
-    }
-    setCargandoRanking(true)
-    setPermisosPeriodo([])
-    api.listarPermisos(undefined, {
-      desde: historialDesde || undefined,
-      hasta: historialHasta || undefined,
-    })
-      .then((lista) => {
-        if (activo) setPermisosPeriodo(lista)
-      })
-      .catch((cause: unknown) => {
-        if (activo) setError(errorComoTexto(cause))
-      })
-      .finally(() => {
-        if (activo) setCargandoRanking(false)
-      })
-    return () => { activo = false }
-  }, [historialDesde, historialHasta])
-
   const permisosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLocaleLowerCase('es')
     if (!termino) return permisos
@@ -359,22 +417,15 @@ function AuthenticatedApp({
         setHora(horaActual())
         return
       }
-      const [actualizados, permisosRanking] = await Promise.all([
-        api.listarPermisos(undefined, {
-          desde: historialDesde || undefined,
-          hasta: historialHasta || undefined,
-          grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
-          alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
-          profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
-          franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
-        }),
-        api.listarPermisos(undefined, {
-          desde: historialDesde || undefined,
-          hasta: historialHasta || undefined,
-        }),
-      ])
+      const actualizados = await api.listarPermisos(undefined, {
+        desde: historialDesde || undefined,
+        hasta: historialHasta || undefined,
+        grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
+        alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
+        profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
+        franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
+      })
       setPermisos(actualizados)
-      setPermisosPeriodo(permisosRanking)
       setAviso('Permiso registrado correctamente.')
       setHora(horaActual())
     } catch (cause) {
@@ -392,7 +443,7 @@ function AuthenticatedApp({
   )
   const primerPermisoPagina = permisosFiltrados.length ? paginaHistorial * permisosPorPagina + 1 : 0
   const ultimoPermisoPagina = Math.min((paginaHistorial + 1) * permisosPorPagina, permisosFiltrados.length)
-  const topAlumnos = [...permisosPeriodo.reduce((ranking, permiso) => {
+  const topAlumnos = [...permisos.reduce((ranking, permiso) => {
     const alumno = ranking.get(permiso.alumno.id)
     if (alumno) {
       alumno.permisos += 1
@@ -417,10 +468,11 @@ function AuthenticatedApp({
   const opcionesGrupo = gruposOrdenados.map((grupo) => ({ id: grupo.id, etiqueta: grupo.codigo }))
   const opcionesAlumno = alumnosDelGrupo.map((alumno) => ({ id: alumno.id, etiqueta: nombreCompleto(alumno) }))
   const opcionesProfesor = profesoresOrdenados.map((profesor) => ({ id: profesor.id, etiqueta: nombreCompleto(profesor) }))
-  const hayFiltrosHistorial = Boolean(
+  const hayFiltrosResumen = Boolean(
     historialDesde !== fechaHoy() || historialHasta !== fechaHoy() ||
-      busqueda || filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
+      filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
   )
+  const hayFiltrosHistorial = hayFiltrosResumen || Boolean(busqueda)
   const desplazarRangoHistorial = (dias: number) => {
     const desde = historialDesde || historialHasta || fechaHoy()
     const hasta = historialHasta || historialDesde || fechaHoy()
@@ -432,8 +484,7 @@ function AuthenticatedApp({
     setHistorialDesde(hoy)
     setHistorialHasta(hoy)
   }
-  const limpiarFiltrosHistorial = () => {
-    setBusqueda('')
+  const limpiarFiltrosResumen = () => {
     irAHoy()
     setFiltroGrupoHistorial('')
     setFiltroAlumnoHistorial('')
@@ -458,7 +509,7 @@ function AuthenticatedApp({
 
         <div className="nav-label">MENÚ PRINCIPAL</div>
         <nav className="main-nav" aria-label="Navegación principal">
-          <button className="nav-link" type="button" onClick={() => setVista('permisos')}><LayoutDashboard size={18} />Resumen</button>
+          <button className={`nav-link${vista === 'resumen' ? ' active' : ''}`} type="button" onClick={() => setVista('resumen')}><LayoutDashboard size={18} />Resumen</button>
           <button className={`nav-link${vista === 'permisos' ? ' active' : ''}`} type="button" onClick={() => setVista('permisos')}><FileClock size={18} />Permisos<span className="nav-count">{permisos.length}</span></button>
         </nav>
         {puedeGestionarCatalogos && <>
@@ -485,9 +536,10 @@ function AuthenticatedApp({
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumb">Centro <span>/</span> <strong>{
-            vista === 'permisos' ? 'Permisos de baño'
-              : vista === 'gestion' ? 'Comunidad escolar'
-                : vista === 'usuarios' ? 'Cuentas de usuario' : 'Mi cuenta'
+            vista === 'resumen' ? 'Resumen'
+              : vista === 'permisos' ? 'Permisos de baño'
+                : vista === 'gestion' ? 'Comunidad escolar'
+                  : vista === 'usuarios' ? 'Cuentas de usuario' : 'Mi cuenta'
           }</strong></div>
           <div className="topbar-right">
             <div className="today-pill"><span /> Sistema operativo</div>
@@ -499,32 +551,105 @@ function AuthenticatedApp({
         <div className="page-content">
           {vista === 'gestion' && puedeGestionarCatalogos ? <GestionCatalogos />
             : vista === 'usuarios' && puedeGestionarCatalogos ? <GestionUsuarios />
-              : vista === 'cuenta' ? <CambioContrasena /> : <>
+              : vista === 'cuenta' ? <CambioContrasena /> : vista === 'resumen' ? <>
           <section className="page-heading" id="resumen">
             <div>
-              <div className="eyebrow"><span className="eyebrow-line" />GESTIÓN DIARIA</div>
-              <h1>Permisos de baño</h1>
-              <p>Controla las salidas al baño de forma sencilla y organizada.</p>
+              <div className="eyebrow"><span className="eyebrow-line" />RESUMEN</div>
+              <h1>Resumen de actividad</h1>
+              <p>Consulta las estadísticas y el top 10 según los criterios seleccionados.</p>
             </div>
-            <div className="current-date"><Clock3 size={16} />{fechaLarga.format(new Date(`${fechaHoy()}T12:00:00`))}</div>
+            <div className="current-date"><Clock3 size={16} />{historialDesde === historialHasta
+              ? fechaLarga.format(new Date(`${historialDesde}T12:00:00`))
+              : `${historialDesde} — ${historialHasta}`}</div>
           </section>
 
+          {error && (
+            <div className="alert alert-error" role="alert">
+              <span>{error}</span>
+              <button className="alert-close" onClick={() => setError('')} aria-label="Cerrar error"><X size={16} /></button>
+            </div>
+          )}
           <section className="stats-grid" aria-label="Resumen del periodo seleccionado">
             <article className="stat-card">
-              <div className="stat-top"><span>Permisos en el periodo</span><span className="stat-icon icon-blue"><FileClock size={18} /></span></div>
+              <div className="stat-top"><span>Permisos según los filtros</span><span className="stat-icon icon-blue"><FileClock size={18} /></span></div>
               <div className="stat-value">{permisos.length}</div>
-              <div className="stat-foot">Entre las fechas seleccionadas</div>
+              <div className="stat-foot">En el periodo y criterios elegidos</div>
             </article>
             <article className="stat-card">
-              <div className="stat-top"><span>Alumnos atendidos en el periodo</span><span className="stat-icon icon-green"><UsersRound size={18} /></span></div>
+              <div className="stat-top"><span>Alumnos atendidos</span><span className="stat-icon icon-green"><UsersRound size={18} /></span></div>
               <div className="stat-value">{alumnosAtendidos}</div>
-              <div className="stat-foot">Alumnos diferentes en el rango</div>
+              <div className="stat-foot">Alumnos diferentes en la selección</div>
             </article>
             <article className="stat-card stat-highlight">
               <div className="stat-top"><span>Estado del sistema</span><span className="stat-icon icon-white"><ShieldCheck size={18} /></span></div>
               <div className="status-value"><span /> En funcionamiento</div>
               <div className="stat-foot">Conectado con el centro</div>
             </article>
+          </section>
+
+          <CriteriosPermisos
+            desde={historialDesde}
+            hasta={historialHasta}
+            grupoId={filtroGrupoHistorial}
+            alumnoId={filtroAlumnoHistorial}
+            profesorId={filtroProfesorHistorial}
+            franjaId={filtroFranjaHistorial}
+            grupos={gruposHistorialOrdenados}
+            alumnos={alumnosHistorialOrdenados}
+            profesores={profesoresOrdenados}
+            franjas={franjasOrdenadas}
+            hayFiltros={hayFiltrosResumen}
+            onDesde={setHistorialDesde}
+            onHasta={setHistorialHasta}
+            onGrupo={setFiltroGrupoHistorial}
+            onAlumno={setFiltroAlumnoHistorial}
+            onProfesor={setFiltroProfesorHistorial}
+            onFranja={setFiltroFranjaHistorial}
+            onLimpiar={limpiarFiltrosResumen}
+            onIrAHoy={irAHoy}
+            onDesplazar={desplazarRangoHistorial}
+          />
+
+          <section className="panel ranking-panel" aria-labelledby="ranking-title">
+            <div className="ranking-heading">
+              <div className="panel-heading">
+                <div className="panel-title-icon ranking-icon"><Trophy size={18} /></div>
+                <div><h2 id="ranking-title">Alumnos con más permisos</h2><p>Top 10 según el periodo y los criterios seleccionados.</p></div>
+              </div>
+            </div>
+            {cargandoPermisos ? (
+              <div className="ranking-empty"><LoaderCircle className="spin" size={20} />Cargando ranking…</div>
+            ) : topAlumnos.length ? (
+              <ol className="ranking-list">
+                {topAlumnos.map(({ alumno, permisos: cantidad }, index) => (
+                  <li className="ranking-row" key={alumno.id}>
+                    <span className={`ranking-position${index < 3 ? ` ranking-position-${index + 1}` : ''}`}>{index + 1}</span>
+                    <span className="ranking-student">
+                      <strong>{nombreCompleto(alumno)}</strong>
+                      <small>{alumno.grupo.codigo}</small>
+                    </span>
+                    <span className="ranking-bar-track" aria-hidden="true"><span style={{ width: `${(cantidad / maxPermisosTop) * 100}%` }} /></span>
+                    <strong className="ranking-count">{cantidad}<small>{cantidad === 1 ? ' permiso' : ' permisos'}</small></strong>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="ranking-empty">
+                {historialDesde && historialHasta && historialDesde > historialHasta
+                  ? 'Corrige el rango de fechas para ver el ranking.'
+                  : 'No hay permisos registrados con estos criterios.'}
+              </div>
+            )}
+          </section>
+          <footer className="page-footer">© {new Date().getFullYear()} IES Reyes <span>·</span> Gestión de permisos de baño</footer>
+          </> : <>
+          <section className="page-heading">
+            <div>
+              <div className="eyebrow"><span className="eyebrow-line" />GESTIÓN DIARIA</div>
+              <h1>Permisos de baño</h1>
+              <p>Controla las salidas al baño de forma sencilla y organizada.</p>
+            </div>
+            <div className="current-date"><Clock3 size={16} />{fechaLarga.format(new Date(`${fechaHoy()}T12:00:00`))}</div>
           </section>
 
           {error && (
@@ -539,6 +664,29 @@ function AuthenticatedApp({
               <button className="alert-close" onClick={() => setAviso('')} aria-label="Cerrar aviso"><X size={16} /></button>
             </div>
           )}
+
+          <CriteriosPermisos
+            desde={historialDesde}
+            hasta={historialHasta}
+            grupoId={filtroGrupoHistorial}
+            alumnoId={filtroAlumnoHistorial}
+            profesorId={filtroProfesorHistorial}
+            franjaId={filtroFranjaHistorial}
+            grupos={gruposHistorialOrdenados}
+            alumnos={alumnosHistorialOrdenados}
+            profesores={profesoresOrdenados}
+            franjas={franjasOrdenadas}
+            hayFiltros={hayFiltrosResumen}
+            onDesde={setHistorialDesde}
+            onHasta={setHistorialHasta}
+            onGrupo={setFiltroGrupoHistorial}
+            onAlumno={setFiltroAlumnoHistorial}
+            onProfesor={setFiltroProfesorHistorial}
+            onFranja={setFiltroFranjaHistorial}
+            onLimpiar={limpiarFiltrosResumen}
+            onIrAHoy={irAHoy}
+            onDesplazar={desplazarRangoHistorial}
+          />
 
           <section className="workspace">
             <article className="panel create-panel">
@@ -608,39 +756,11 @@ function AuthenticatedApp({
               <div className="history-heading">
                 <div className="panel-heading">
                   <div className="panel-title-icon panel-title-icon-light"><FileClock size={18} /></div>
-                  <div><h2>Historial de permisos</h2><p>Consulta y filtra las salidas registradas.</p></div>
+                  <div><h2>Historial de permisos</h2><p>Salidas del periodo y criterios elegidos en el resumen.</p></div>
                 </div>
-                <button className="icon-button" type="button" onClick={irAHoy} title="Mostrar los permisos de hoy" aria-label="Mostrar permisos de hoy">
-                  <CalendarDays size={17} />
-                </button>
               </div>
               <div className="history-tools">
                 <div className="search-box"><Search size={16} /><input value={busqueda} onChange={(event) => setBusqueda(event.target.value)} placeholder="Buscar alumno, grupo…" aria-label="Buscar en permisos" /></div>
-                <div className="day-navigation" aria-label="Navegar por fechas">
-                  <button type="button" onClick={() => desplazarRangoHistorial(-1)} title="Desplazar el rango un día atrás" aria-label="Día anterior"><ChevronLeft size={16} /><span>Anterior</span></button>
-                  <button type="button" onClick={() => desplazarRangoHistorial(1)} title="Desplazar el rango un día adelante" aria-label="Día siguiente"><span>Siguiente</span><ChevronRight size={16} /></button>
-                </div>
-              </div>
-              <div className="history-date-range">
-                <label className="history-filter-field"><span>Desde</span><input type="date" value={historialDesde} onChange={(event) => setHistorialDesde(event.target.value)} aria-label="Fecha inicial del historial" /></label>
-                <span className="date-range-separator">—</span>
-                <label className="history-filter-field"><span>Hasta</span><input type="date" value={historialHasta} onChange={(event) => setHistorialHasta(event.target.value)} aria-label="Fecha final del historial" /></label>
-                <span className="range-hint"><ListFilter size={14} />Rango inclusivo</span>
-              </div>
-              <div className="history-filters">
-                <label className="history-filter-field"><span>Grupo</span><select value={filtroGrupoHistorial} onChange={(event) => setFiltroGrupoHistorial(event.target.value)} aria-label="Filtrar historial por grupo">
-                  <option value="">Todos</option>{gruposHistorialOrdenados.map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.codigo}</option>)}
-                </select></label>
-                <label className="history-filter-field"><span>Alumno</span><select value={filtroAlumnoHistorial} onChange={(event) => setFiltroAlumnoHistorial(event.target.value)} aria-label="Filtrar historial por alumno">
-                  <option value="">Todos</option>{alumnosHistorialOrdenados.map((alumno) => <option key={alumno.id} value={alumno.id}>{nombreCompleto(alumno)}</option>)}
-                </select></label>
-                <label className="history-filter-field"><span>Profesor</span><select value={filtroProfesorHistorial} onChange={(event) => setFiltroProfesorHistorial(event.target.value)} aria-label="Filtrar historial por profesor">
-                  <option value="">Todos</option>{profesoresOrdenados.map((profesor) => <option key={profesor.id} value={profesor.id}>{nombreCompleto(profesor)}</option>)}
-                </select></label>
-                <label className="history-filter-field"><span>Franja</span><select value={filtroFranjaHistorial} onChange={(event) => setFiltroFranjaHistorial(event.target.value)} aria-label="Filtrar historial por franja horaria">
-                  <option value="">Todas</option>{franjasOrdenadas.map((franja) => <option key={franja.id} value={franja.id}>{franja.nombre}</option>)}
-                </select></label>
-                <button className="clear-history-filters" type="button" onClick={limpiarFiltrosHistorial} disabled={!hayFiltrosHistorial}>Limpiar filtros</button>
               </div>
               <div className="table-head">
                 <span>ALUMNO</span><span>GRUPO</span><span>HORA / FRANJA</span><span>PROFESOR</span>
@@ -694,40 +814,6 @@ function AuthenticatedApp({
                 <span className="live-indicator"><span /> Datos actualizados</span>
               </div>
             </article>
-          </section>
-          <section className="panel ranking-panel" aria-labelledby="ranking-title">
-            <div className="ranking-heading">
-              <div className="panel-heading">
-                <div className="panel-title-icon ranking-icon"><Trophy size={18} /></div>
-                <div><h2 id="ranking-title">Alumnos con más permisos</h2><p>Top 10 del periodo seleccionado, sin aplicar los filtros de alumno o profesor.</p></div>
-              </div>
-              <span className="ranking-period">{historialDesde === historialHasta
-                ? fechaLarga.format(new Date(`${historialDesde}T12:00:00`))
-                : `${historialDesde} — ${historialHasta}`}</span>
-            </div>
-            {cargandoRanking ? (
-              <div className="ranking-empty"><LoaderCircle className="spin" size={20} />Cargando ranking…</div>
-            ) : topAlumnos.length ? (
-              <ol className="ranking-list">
-                {topAlumnos.map(({ alumno, permisos: cantidad }, index) => (
-                  <li className="ranking-row" key={alumno.id}>
-                    <span className={`ranking-position${index < 3 ? ` ranking-position-${index + 1}` : ''}`}>{index + 1}</span>
-                    <span className="ranking-student">
-                      <strong>{nombreCompleto(alumno)}</strong>
-                      <small>{alumno.grupo.codigo}</small>
-                    </span>
-                    <span className="ranking-bar-track" aria-hidden="true"><span style={{ width: `${(cantidad / maxPermisosTop) * 100}%` }} /></span>
-                    <strong className="ranking-count">{cantidad}<small>{cantidad === 1 ? ' permiso' : ' permisos'}</small></strong>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className="ranking-empty">
-                {historialDesde && historialHasta && historialDesde > historialHasta
-                  ? 'Corrige el rango de fechas para ver el ranking.'
-                  : 'No hay permisos registrados en este periodo.'}
-              </div>
-            )}
           </section>
           <footer className="page-footer">© {new Date().getFullYear()} IES Reyes <span>·</span> Gestión de permisos de baño</footer>
           </>}
