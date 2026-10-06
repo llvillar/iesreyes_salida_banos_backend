@@ -40,6 +40,15 @@ docker compose exec -T db psql `
     -U $dbUsername `
     -d ies_reyes `
     -v ON_ERROR_STOP=1 `
+    -f /scripts/01-inicializar.sql
+if ($LASTEXITCODE -ne 0) {
+    throw "No se pudo crear el esquema y los catálogos iniciales."
+}
+
+docker compose exec -T db psql `
+    -U $dbUsername `
+    -d ies_reyes `
+    -v ON_ERROR_STOP=1 `
     -c "UPDATE profesores SET nombre = 'Luis', apellidos = 'Villar', email = 'llvillar@gmail.com' WHERE dni = '00000001A'; INSERT INTO usuarios_app (email, contrasena_hash, perfil, profesor_id) SELECT 'llvillar@gmail.com', '$passwordHash', 'GESTION_CATALOGOS', id FROM profesores WHERE dni = '00000001A';"
 if ($LASTEXITCODE -ne 0) {
     throw "No se pudo crear el profesor y la cuenta de desarrollo."

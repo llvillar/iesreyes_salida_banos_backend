@@ -4,6 +4,30 @@ API REST desarrollada con Spring Boot y PostgreSQL para registrar autorizaciones
 de salida al baño. Alumnos, profesores, grupos y franjas se guardan en tablas
 separadas; cada permiso referencia esos registros mediante claves foráneas.
 
+## Aplicación y despliegue
+
+El proyecto incluye una aplicación web React/Vite, una API Spring Boot y una
+base de datos PostgreSQL. `compose.yaml` inicia la API y PostgreSQL para
+desarrollo; `compose.preproduccion.yaml` añade la web compilada y servida por
+Nginx. En esa configuración la web se abre en `http://localhost:8081`, Nginx
+redirige `/api` a la API y solo la web se publica en el PC. No hay una URL de
+despliegue público configurada en este repositorio.
+
+Para iniciar desde cero el entorno local de desarrollo, ejecuta
+`.\scripts\poner-a-punto.ps1` en PowerShell y confirma escribiendo `RECREAR`.
+Este proceso borra el volumen local de desarrollo y crea la cuenta:
+
+| Usuario | Contraseña | Perfil |
+| --- | --- | --- |
+| `llvillar@gmail.com` | `1234` | Gestión de catálogos |
+
+La API queda en `http://localhost:8080`. La cuenta se configura con ese script;
+un simple `docker compose up --build` no establece esta contraseña en una base
+de datos ya existente. El script es exclusivamente para desarrollo local y
+destructivo: no lo uses en preproducción ni contra datos que quieras conservar.
+Para generar historial de ejemplo, el script opcional
+`.\scripts\cargar-datos-prueba.ps1` añade alumnos, profesores y permisos.
+
 ## Modelo de datos
 
 - `alumnos`: DNI, nombre, apellidos, correo opcional y grupo.
@@ -29,8 +53,9 @@ de entorno para tu instalación:
 
 El esquema y los catálogos iniciales están en `db/01-inicializar.sql`; los datos
 de prueba históricos, en `db/02-datos-prueba.sql`. Para preparar desarrollo
-desde cero utiliza los dos scripts de PowerShell documentados abajo. La
-aplicación aplica las migraciones de `src/main/resources/db/migration` antes
+desde cero utiliza el script de puesta a punto descrito arriba; el script de
+carga de datos de prueba es opcional. Ambos están en `scripts/`. La aplicación
+aplica las migraciones de `src/main/resources/db/migration` antes
 de actualizar el esquema; las cuentas existentes conservan sus datos y reciben
 el correo de su profesor asociado. En desarrollo se puede ejecutar desde
 IntelliJ o con `mvnw spring-boot:run`; las pruebas automatizadas usan H2 en
@@ -61,11 +86,11 @@ de gestión de catálogos.
 
 No uses contraseñas reales en el repositorio ni las reutilices. El script local
 de puesta a punto crea `llvillar@gmail.com` con contraseña `1234` y perfil
-`GESTION_CATALOGOS` (gestión completa). Es una credencial débil, guardada como
-hash y exclusiva del entorno local: cámbiala antes de cualquier uso compartido
-y no la uses fuera de tu PC. Para preproducción, configura una contraseña
-segura. La cuenta inicial de producción solo se crea si la tabla de usuarios
-está vacía.
+`GESTION_CATALOGOS` (gestión completa), listo para probar en desarrollo local.
+Es una credencial débil, guardada como hash y exclusiva del entorno local:
+cámbiala antes de cualquier uso compartido y no la uses fuera de tu PC. Para
+preproducción, configura una contraseña segura. La cuenta inicial solo se crea
+si la tabla de usuarios está vacía.
 Preproducción exige configurar estas dos variables. Puedes copiar el archivo de
 ejemplo, editar los valores y mantener `.env` sin añadirlo al repositorio:
 
