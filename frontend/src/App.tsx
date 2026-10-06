@@ -359,15 +359,22 @@ function AuthenticatedApp({
         setHora(horaActual())
         return
       }
-      const actualizados = await api.listarPermisos(undefined, {
-        desde: historialDesde || undefined,
-        hasta: historialHasta || undefined,
-        grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
-        alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
-        profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
-        franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
-      })
+      const [actualizados, permisosRanking] = await Promise.all([
+        api.listarPermisos(undefined, {
+          desde: historialDesde || undefined,
+          hasta: historialHasta || undefined,
+          grupoId: filtroGrupoHistorial ? Number(filtroGrupoHistorial) : undefined,
+          alumnoId: filtroAlumnoHistorial ? Number(filtroAlumnoHistorial) : undefined,
+          profesorId: filtroProfesorHistorial ? Number(filtroProfesorHistorial) : undefined,
+          franjaHorariaId: filtroFranjaHistorial ? Number(filtroFranjaHistorial) : undefined,
+        }),
+        api.listarPermisos(undefined, {
+          desde: historialDesde || undefined,
+          hasta: historialHasta || undefined,
+        }),
+      ])
       setPermisos(actualizados)
+      setPermisosPeriodo(permisosRanking)
       setAviso('Permiso registrado correctamente.')
       setHora(horaActual())
     } catch (cause) {
