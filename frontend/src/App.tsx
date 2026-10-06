@@ -70,6 +70,18 @@ function desplazarFecha(fecha: string, dias: number) {
   return fechaNueva.toISOString().slice(0, 10)
 }
 
+function fechaEnCastellano(fecha: string) {
+  return fechaLarga.format(new Date(`${fecha}T12:00:00`))
+}
+
+function etiquetaPeriodo(desde: string, hasta: string) {
+  if (desde && hasta && desde === hasta) return fechaEnCastellano(desde)
+  if (desde && hasta) return `${fechaEnCastellano(desde)} — ${fechaEnCastellano(hasta)}`
+  if (desde) return `Desde ${fechaEnCastellano(desde)}`
+  if (hasta) return `Hasta ${fechaEnCastellano(hasta)}`
+  return 'Todas las fechas'
+}
+
 function errorComoTexto(error: unknown) {
   return error instanceof Error ? error.message : 'Ha ocurrido un error inesperado.'
 }
@@ -472,6 +484,7 @@ function AuthenticatedApp({
     historialDesde !== fechaHoy() || historialHasta !== fechaHoy() ||
       filtroGrupoHistorial || filtroAlumnoHistorial || filtroProfesorHistorial || filtroFranjaHistorial,
   )
+  const periodoVisible = etiquetaPeriodo(historialDesde, historialHasta)
   const hayFiltrosHistorial = hayFiltrosResumen || Boolean(busqueda)
   const desplazarRangoHistorial = (dias: number) => {
     const desde = historialDesde || historialHasta || fechaHoy()
@@ -558,9 +571,7 @@ function AuthenticatedApp({
               <h1>Resumen de actividad</h1>
               <p>Consulta las estadísticas y el top 10 según los criterios seleccionados.</p>
             </div>
-            <div className="current-date"><Clock3 size={16} />{historialDesde === historialHasta
-              ? fechaLarga.format(new Date(`${historialDesde}T12:00:00`))
-              : `${historialDesde} — ${historialHasta}`}</div>
+            <div className="current-date"><Clock3 size={16} />{periodoVisible}</div>
           </section>
 
           {error && (
@@ -649,7 +660,7 @@ function AuthenticatedApp({
               <h1>Permisos de baño</h1>
               <p>Controla las salidas al baño de forma sencilla y organizada.</p>
             </div>
-            <div className="current-date"><Clock3 size={16} />{fechaLarga.format(new Date(`${fechaHoy()}T12:00:00`))}</div>
+            <div className="current-date"><Clock3 size={16} />{periodoVisible}</div>
           </section>
 
           {error && (
