@@ -34,7 +34,8 @@ Para generar historial de ejemplo, el script opcional
 - `profesores`: DNI, nombre, apellidos y correo opcional.
 - `grupos`: curso, sección y código único. El catálogo incluye secciones A y B
   para 1.º–4.º ESO y 1.º–2.º Bachillerato.
-- `franjas_horarias`: seis valores fijos, de `1º Hora` a `6º Hora`.
+- `franjas_horarias`: seis valores fijos, de `1º Hora` a `6º Hora`, con hora de
+  inicio y fin configurables.
 - `permisos_bano`: fecha, hora y referencias a alumno, profesor y franja. El
   grupo del permiso se obtiene del grupo asignado al alumno.
 
@@ -295,7 +296,9 @@ gestión de catálogos.
 Un grupo recibe `curso` (por ejemplo `1º ESO` o `2º Bachillerato`) y `seccion`
 (`A` o `B`); la API genera automáticamente el código del grupo. Una franja
 recibe `numero` entre 1 y 6; su nombre (`1º Hora` … `6º Hora`) se genera
-automáticamente.
+automáticamente. Una franja recibe también `horaInicio` y `horaFin` en formato
+`HH:mm` (por ejemplo, `08:30` y `09:20`); la hora de fin debe ser posterior al
+inicio.
 
 Ejemplos para crear recursos:
 

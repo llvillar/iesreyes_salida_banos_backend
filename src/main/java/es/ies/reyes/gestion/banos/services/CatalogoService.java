@@ -157,13 +157,13 @@ public class CatalogoService {
 
     public FranjaHorariaResponse crearFranja(FranjaHorariaRequest request) {
         return FranjaHorariaResponse.desde(franjaRepository.save(
-                new FranjaHoraria(request.numero(), request.nombre())
+                new FranjaHoraria(request.numero(), request.nombre(), request.horaInicio(), request.horaFin())
         ));
     }
 
     public FranjaHorariaResponse actualizarFranja(Long id, FranjaHorariaRequest request) {
         FranjaHoraria franja = obtenerFranja(id);
-        franja.actualizar(request.numero(), request.nombre());
+        franja.actualizar(request.numero(), request.nombre(), request.horaInicio(), request.horaFin());
         return FranjaHorariaResponse.desde(franjaRepository.save(franja));
     }
 

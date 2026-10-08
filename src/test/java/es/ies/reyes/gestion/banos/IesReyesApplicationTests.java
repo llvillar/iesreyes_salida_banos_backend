@@ -76,7 +76,8 @@ class IesReyesApplicationTests {
                 "12345678Z", "Ana", "Pérez", "ana.perez@example.test", grupo));
         profesor = profesorRepository.save(new Profesor(
                 "87654321X", "Laura", "García", "laura.garcia@example.test"));
-        franja = franjaRepository.save(new FranjaHoraria(3, "3º Hora"));
+        franja = franjaRepository.save(new FranjaHoraria(
+                3, "3º Hora", LocalTime.of(10, 10), LocalTime.of(11, 0)));
     }
 
     @Test
@@ -210,15 +211,24 @@ class IesReyesApplicationTests {
                 .andExpect(jsonPath("$.nombre").value("3º Hora"));
         long franjaNuevaId = idDe(mockMvc.perform(post("/api/franjas-horarias").with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"numero\":6}"))
+                        .content("{\"numero\":6,\"horaInicio\":\"12:40\",\"horaFin\":\"13:30\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nombre").value("6º Hora"))
+                .andExpect(jsonPath("$.horaInicio").value("12:40:00"))
+                .andExpect(jsonPath("$.horaFin").value("13:30:00"))
                 .andReturn());
         mockMvc.perform(put("/api/franjas-horarias/{id}", franjaNuevaId).with(SecurityMockMvcRequestPostProcessors.csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"numero\":5}"))
+                        .content("{\"numero\":5,\"horaInicio\":\"11:50\",\"horaFin\":\"12:40\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombre").value("5º Hora"));
+                .andExpect(jsonPath("$.nombre").value("5º Hora"))
+                .andExpect(jsonPath("$.horaInicio").value("11:50:00"))
+                .andExpect(jsonPath("$.horaFin").value("12:40:00"));
+        mockMvc.perform(put("/api/franjas-horarias/{id}", franjaNuevaId)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"numero\":5,\"horaInicio\":\"12:40\",\"horaFin\":\"11:50\"}"))
+                .andExpect(status().isBadRequest());
         mockMvc.perform(delete("/api/franjas-horarias/{id}", franjaNuevaId)
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isNoContent());
@@ -238,7 +248,8 @@ class IesReyesApplicationTests {
                 "22345678A", "Luis", "Serrano", "luis@example.test", otroGrupo));
         Profesor otroProfesor = profesorRepository.save(new Profesor(
                 "97654321X", "Pablo", "Vega", "pablo@example.test"));
-        FranjaHoraria otraFranja = franjaRepository.save(new FranjaHoraria(4, "4º Hora"));
+        FranjaHoraria otraFranja = franjaRepository.save(new FranjaHoraria(
+                4, "4º Hora", LocalTime.of(11, 0), LocalTime.of(11, 50)));
 
         permisoRepository.save(new PermisoBano(
                 alumno, profesor, franja, LocalDate.of(2026, 9, 28), LocalTime.of(10, 15)));

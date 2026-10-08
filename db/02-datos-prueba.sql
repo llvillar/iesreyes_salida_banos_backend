@@ -10,10 +10,14 @@ VALUES
     ('2º Bachillerato', 'A', '2ºA Bachillerato'), ('2º Bachillerato', 'B', '2ºB Bachillerato')
 ON CONFLICT (curso, seccion) DO NOTHING;
 
-INSERT INTO franjas_horarias (numero, nombre)
+INSERT INTO franjas_horarias (numero, nombre, hora_inicio, hora_fin)
 VALUES
-    (1, '1º Hora'), (2, '2º Hora'), (3, '3º Hora'),
-    (4, '4º Hora'), (5, '5º Hora'), (6, '6º Hora')
+    (1, '1º Hora', '08:30:00', '09:20:00'),
+    (2, '2º Hora', '09:20:00', '10:10:00'),
+    (3, '3º Hora', '10:10:00', '11:00:00'),
+    (4, '4º Hora', '11:00:00', '11:50:00'),
+    (5, '5º Hora', '11:50:00', '12:40:00'),
+    (6, '6º Hora', '12:40:00', '13:30:00')
 ON CONFLICT (numero) DO NOTHING;
 
 INSERT INTO profesores (dni, nombre, apellidos, email)

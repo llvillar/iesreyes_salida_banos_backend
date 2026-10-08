@@ -14,10 +14,13 @@ type Formulario = {
   curso: string
   seccion: string
   numero: string
+  horaInicio: string
+  horaFin: string
 }
 
 const formularioVacio = (): Formulario => ({
   dni: '', nombre: '', apellidos: '', email: '', grupoId: '', curso: '', seccion: 'A', numero: '',
+  horaInicio: '', horaFin: '',
 })
 
 const cursos = ['1º ESO', '2º ESO', '3º ESO', '4º ESO', '1º Bachillerato', '2º Bachillerato']
@@ -109,7 +112,10 @@ function GestionCatalogos() {
       if (grupo) setFormulario({ ...formularioVacio(), curso: grupo.curso, seccion: grupo.seccion })
     } else {
       const franja = franjas.find((registro) => registro.id === id)
-      if (franja) setFormulario({ ...formularioVacio(), numero: String(franja.numero) })
+      if (franja) setFormulario({
+        ...formularioVacio(), numero: String(franja.numero),
+        horaInicio: franja.horaInicio.slice(0, 5), horaFin: franja.horaFin.slice(0, 5),
+      })
     }
   }
 
@@ -145,7 +151,11 @@ function GestionCatalogos() {
         if (id === null) await api.crearGrupo(datos)
         else await api.actualizarGrupo(id, datos)
       } else {
-        const datos = { numero: Number(formulario.numero) }
+        const datos = {
+          numero: Number(formulario.numero),
+          horaInicio: formulario.horaInicio,
+          horaFin: formulario.horaFin,
+        }
         if (id === null) await api.crearFranja(datos)
         else await api.actualizarFranja(id, datos)
       }
@@ -249,7 +259,7 @@ function GestionCatalogos() {
               <p>{editando === null ? 'Completa los datos del nuevo registro.' : 'Modifica los datos del registro seleccionado.'}</p></div>
           </div>
           {tipo === 'grupos' && <p className="form-note catalog-note">El código se genera automáticamente a partir del curso y la sección.</p>}
-          {tipo === 'franjas' && <p className="form-note catalog-note">Hay seis franjas disponibles; el nombre se genera automáticamente.</p>}
+          {tipo === 'franjas' && <p className="form-note catalog-note">Hay seis franjas disponibles; indica la hora de inicio y fin de cada una.</p>}
           <form className="permission-form catalog-form" onSubmit={guardar}>
             {formularioPersona && <>
               <label className="field"><span>DNI <b>*</b></span>
@@ -279,6 +289,12 @@ function GestionCatalogos() {
             {tipo === 'franjas' && <label className="field"><span>Número de franja <b>*</b></span><div className="select-wrap"><select value={formulario.numero} onChange={(event) => cambiarCampo('numero', event.target.value)} required>
               <option value="">Selecciona una franja</option>{[1, 2, 3, 4, 5, 6].map((numero) => <option key={numero} value={numero}>{numero}º Hora</option>)}
             </select></div></label>}
+            {tipo === 'franjas' && <>
+              <label className="field"><span>Hora de inicio <b>*</b></span>
+                <input type="time" value={formulario.horaInicio} onChange={(event) => cambiarCampo('horaInicio', event.target.value)} required /></label>
+              <label className="field"><span>Hora de fin <b>*</b></span>
+                <input type="time" value={formulario.horaFin} onChange={(event) => cambiarCampo('horaFin', event.target.value)} required /></label>
+            </>}
             <button className="submit-button" type="submit" disabled={guardando || cargando || (tipo === 'alumnos' && !grupos.length)}>
               {guardando ? <LoaderCircle size={17} className="spin" /> : editando === null ? <Plus size={17} /> : <Check size={17} />}
               {guardando ? 'Guardando…' : editando === null ? 'Añadir registro' : 'Guardar cambios'}
@@ -349,8 +365,8 @@ function GestionCatalogos() {
                   <div><strong>{grupo.codigo}</strong><small>{grupo.curso} · Sección {grupo.seccion}</small></div>
                   <RowActions onEdit={() => comenzarEdicion(grupo.id)} onDelete={() => eliminar(grupo.id, `el grupo ${grupo.codigo}`)} />
                 </div>) : <div className="table-state empty-state"><strong>No hay grupos que coincidan</strong><span>Cambia el nombre del grupo de búsqueda.</span></div>)}
-                {tipo === 'franjas' && [...franjas].sort((a, b) => a.numero - b.numero).map((franja) => <div className="catalog-row" key={franja.id}>
-                  <div><strong>{franja.nombre}</strong><small>Franja {franja.numero}</small></div>
+                {tipo === 'franjas' && [...franjas].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio)).map((franja) => <div className="catalog-row" key={franja.id}>
+                  <div><strong>{franja.nombre}</strong><small>{franja.horaInicio.slice(0, 5)}–{franja.horaFin.slice(0, 5)}</small></div>
                   <RowActions onEdit={() => comenzarEdicion(franja.id)} onDelete={() => eliminar(franja.id, franja.nombre)} />
                 </div>)}
               </div>}

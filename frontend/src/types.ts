@@ -26,6 +26,8 @@ export interface FranjaHoraria {
   id: number
   numero: number
   nombre: string
+  horaInicio: string
+  horaFin: string
 }
 
 export interface Permiso {
@@ -92,4 +94,6 @@ export interface GrupoNuevo {
 
 export interface FranjaHorariaNueva {
   numero: number
+  horaInicio: string
+  horaFin: string
 }

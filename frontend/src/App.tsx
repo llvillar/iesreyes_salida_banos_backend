@@ -343,7 +343,12 @@ function AuthenticatedApp({
         setProfesores(listaProfesores)
         setFranjas(listaFranjas)
         if (listaProfesores.length) setProfesorId(String(listaProfesores[0].id))
-        if (listaFranjas.length) setFranjaId(String(listaFranjas[0].id))
+        const horaSistema = horaActual()
+        const franjaActual = listaFranjas.find((franja) =>
+          horaSistema >= franja.horaInicio.slice(0, 5) &&
+          horaSistema < franja.horaFin.slice(0, 5),
+        )
+        setFranjaId(franjaActual ? String(franjaActual.id) : '')
       })
       .catch((cause: unknown) => {
         if (activo) setError(errorComoTexto(cause))
@@ -468,7 +473,7 @@ function AuthenticatedApp({
       compararApellidos(a.alumno, b.alumno))
     .slice(0, 10)
   const maxPermisosTop = topAlumnos[0]?.permisos ?? 0
-  const franjasOrdenadas = [...franjas].sort((a, b) => a.numero - b.numero)
+  const franjasOrdenadas = [...franjas].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
   const gruposOrdenados = [...grupos].sort((a, b) =>
     a.codigo.localeCompare(b.codigo, 'es', { sensitivity: 'base' }))
   const gruposHistorialOrdenados = gruposOrdenados
