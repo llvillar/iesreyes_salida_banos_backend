@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import {
   CalendarDays,
@@ -328,10 +328,19 @@ function AuthenticatedApp({
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true)
   const [cargandoPermisos, setCargandoPermisos] = useState(true)
   const [guardando, setGuardando] = useState(false)
+  const [altaAbierta, setAltaAbierta] = useState(false)
+  const dialogoAlta = useRef<HTMLDialogElement>(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
   const puedeGestionarCatalogos = usuario.role === 'GESTION_CATALOGOS'
   const rolVisible = puedeGestionarCatalogos ? 'Gestión de catálogos' : 'Gestión de salidas'
+
+  useEffect(() => {
+    const dialogo = dialogoAlta.current
+    if (!altaAbierta || !dialogo) return
+    dialogo.showModal()
+    return () => dialogo.close()
+  }, [altaAbierta])
 
   useEffect(() => {
     let activo = true
@@ -432,6 +441,7 @@ function AuthenticatedApp({
       if (historialDesde && historialHasta && historialDesde > historialHasta) {
         setAviso('Permiso registrado correctamente.')
         setHora(horaActual())
+        setAltaAbierta(false)
         return
       }
       const actualizados = await api.listarPermisos(undefined, {
@@ -445,6 +455,7 @@ function AuthenticatedApp({
       setPermisos(actualizados)
       setAviso('Permiso registrado correctamente.')
       setHora(horaActual())
+      setAltaAbierta(false)
     } catch (cause) {
       setError(errorComoTexto(cause))
     } finally {
@@ -665,7 +676,12 @@ function AuthenticatedApp({
               <h1>Permisos de baño</h1>
               <p>Controla las salidas al baño de forma sencilla y organizada.</p>
             </div>
-            <div className="current-date"><Clock3 size={16} />{periodoVisible}</div>
+            <div className="page-heading-actions">
+              <button className="new-permission-button" type="button" onClick={() => setAltaAbierta(true)} disabled={cargandoCatalogos || noHayCatalogos}>
+                <Plus size={17} />Nuevo permiso
+              </button>
+              <div className="current-date"><Clock3 size={16} />{periodoVisible}</div>
+            </div>
           </section>
 
           {error && (
@@ -704,15 +720,32 @@ function AuthenticatedApp({
             onDesplazar={desplazarRangoHistorial}
           />
 
-          <section className="workspace">
-            <article className="panel create-panel">
-              <div className="panel-heading">
-                <div className="panel-title-icon"><Plus size={18} /></div>
-                <div><h2>Nuevo permiso</h2><p>Completa los datos para registrar una salida.</p></div>
+          {altaAbierta && (
+            <dialog
+              className="permission-dialog"
+              ref={dialogoAlta}
+              aria-labelledby="permission-dialog-title"
+              onCancel={(event) => {
+                if (guardando) event.preventDefault()
+                else setAltaAbierta(false)
+              }}
+              onClick={(event) => {
+                if (event.target === event.currentTarget && !guardando) setAltaAbierta(false)
+              }}
+            >
+              <div className="permission-dialog-heading">
+                <div className="panel-heading">
+                  <div className="panel-title-icon"><Plus size={18} /></div>
+                  <div><h2 id="permission-dialog-title">Nuevo permiso</h2><p>Completa los datos para registrar una salida.</p></div>
+                </div>
+                <button className="icon-button" type="button" onClick={() => setAltaAbierta(false)} disabled={guardando} aria-label="Cerrar ventana">
+                  <X size={18} />
+                </button>
               </div>
               {noHayCatalogos && (
                 <div className="inline-warning">Faltan alumnos, grupos, profesores o franjas horarias. Carga los catálogos en la API antes de registrar permisos.</div>
               )}
+              {error && <div className="alert alert-error dialog-error" role="alert">{error}</div>}
               <form className="permission-form" onSubmit={crearPermiso}>
                 <BuscadorDesplegable
                   etiqueta="Grupo"
@@ -766,8 +799,10 @@ function AuthenticatedApp({
                   {guardando ? 'Registrando permiso…' : 'Registrar permiso'}
                 </button>
               </form>
-            </article>
+            </dialog>
+          )}
 
+          <section className="workspace permission-workspace">
             <article className="panel history-panel" id="permisos">
               <div className="history-heading">
                 <div className="panel-heading">
